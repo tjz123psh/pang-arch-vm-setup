@@ -9,6 +9,7 @@ secrets*
 *.key
 *.pem
 *.token
+!*.example
 
 # Private app/user data
 files/config/opencode/opencode.json
