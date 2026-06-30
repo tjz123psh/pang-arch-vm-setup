@@ -1,0 +1,26 @@
+# Runtime logs and temporary files
+*.log
+*.tmp
+tmp/
+
+# Local secrets must never be committed
+secrets*
+*.secret
+*.key
+*.pem
+*.token
+
+# Private app/user data
+files/config/opencode/opencode.json
+files/config/fish/secrets.fish
+files/config/google-chrome/
+files/config/mozilla/
+files/config/obsidian/
+files/config/QQ/
+files/config/MusicFree/
+files/config/flclash/
+files/config/syncthing/
+
+# Caches
+.cache/
+node_modules/

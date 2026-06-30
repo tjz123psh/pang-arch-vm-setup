@@ -1,0 +1,10 @@
+# AUR packages for the VM profile.
+# DMS itself is installed by modules/20-dms.sh.
+
+opencode-bin
+flclash
+dsearch-bin
+leaf-markdown-viewer-bin
+rime-ice-git
+rime-wanxiang-gram-zh-hans
+fcitx5-skin-fluentdark-git
