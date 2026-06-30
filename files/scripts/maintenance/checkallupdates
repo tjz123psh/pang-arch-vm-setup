@@ -1,0 +1,187 @@
+#!/bin/bash
+# 描述： 检查所有待更新软件
+# ==============================================================================
+# 终端下使用 fzf 显示所有待更新的软件包（Pacman, AUR, Flatpak）
+# 特性：
+#   1. 颜色高亮：区分软件源
+#   2. 缓存加速：优先读取缓存实现秒开
+#   3. 交互更新：按 Enter 调用 sysup
+#   4. 异步刷新：Ctrl+R 强制刷新时直接查询最新数据
+# ==============================================================================
+
+set -euo pipefail
+
+# === 获取脚本自身的绝对路径 (供 fzf reload 使用) ===
+SCRIPT_PATH=$(readlink -f "$0")
+SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)"
+SYSUP_CMD="$SCRIPT_DIR/sysup"
+if [[ ! -x "$SYSUP_CMD" ]]; then
+    SYSUP_CMD="sysup"
+fi
+
+# === 解析内部参数 ===
+FORCE_REFRESH=0
+if [[ "${1:-}" == "--refresh" ]]; then
+    FORCE_REFRESH=1
+fi
+
+# === 配置区域 ===
+CACHE_DIR="$HOME/.cache/checkallupdates"
+CACHE_REPO="$CACHE_DIR/updates-repo.txt"
+CACHE_AUR="$CACHE_DIR/updates-aur.txt"
+CACHE_FLATPAK="$CACHE_DIR/updates-flatpak.txt"
+CACHE_STAMP="$CACHE_DIR/last-refresh"
+CACHE_MAX_AGE=3600
+
+# 确保缓存目录存在
+mkdir -p "$CACHE_DIR"
+
+# === 颜色定义 (Matugen 兼容) ===
+export C_TERTIARY=$'\x1b[1;35m'  # 洋红 - Flatpak
+export C_PRIMARY=$'\x1b[1;34m'   # 蓝色 - AUR
+export C_CYAN=$'\x1b[1;36m'      # 青色 - Pacman
+export C_GREEN=$'\x1b[1;32m'     # 绿色 - 无更新提示
+export C_RESET=$'\x1b[0m'        # 重置
+NO_UPDATES_TEXT="[None]    当前没有待更新项目"
+
+# === 工具函数 ===
+check_cmd() {
+    command -v "$1" &> /dev/null
+}
+
+cache_is_fresh() {
+    local file="$1"
+    local current_time file_time
+
+    [[ -f "$file" ]] || return 1
+    current_time=$(date +%s)
+    file_time=$(stat -c %Y "$file" 2>/dev/null || printf 0)
+    (( current_time - file_time < CACHE_MAX_AGE ))
+}
+
+aur_helper() {
+    if check_cmd paru; then
+        printf 'paru\n'
+    elif check_cmd yay; then
+        printf 'yay\n'
+    fi
+    return 0
+}
+
+print_tagged_cache() {
+    local file="$1"
+    local label="$2"
+    local color="$3"
+
+    [[ -s "$file" ]] || return 0
+    awk -v c1="$color" -v cr="$C_RESET" -v label="$label" 'NF {print c1 label cr $0}' "$file"
+}
+
+refresh_update_cache() {
+    local tmp_repo tmp_aur tmp_flatpak helper
+
+    tmp_repo=$(mktemp "$CACHE_DIR/repo.XXXXXX")
+    tmp_aur=$(mktemp "$CACHE_DIR/aur.XXXXXX")
+    tmp_flatpak=$(mktemp "$CACHE_DIR/flatpak.XXXXXX")
+
+    : > "$tmp_repo"
+    : > "$tmp_aur"
+    : > "$tmp_flatpak"
+
+    if check_cmd checkupdates; then
+        checkupdates 2>/dev/null > "$tmp_repo" || true
+    fi
+
+    helper=$(aur_helper)
+    if [[ -n "$helper" ]]; then
+        "$helper" -Qua 2>/dev/null > "$tmp_aur" || true
+    fi
+
+    if check_cmd flatpak; then
+        flatpak remote-ls --updates --cached --columns=application,version 2>/dev/null > "$tmp_flatpak" || true
+        if [[ ! -s "$tmp_flatpak" && "${CHECKALLUPDATES_FLATPAK_ONLINE:-0}" == "1" ]]; then
+            flatpak remote-ls --updates --columns=application,version 2>/dev/null > "$tmp_flatpak" || true
+        fi
+    fi
+
+    mv -- "$tmp_repo" "$CACHE_REPO"
+    mv -- "$tmp_aur" "$CACHE_AUR"
+    mv -- "$tmp_flatpak" "$CACHE_FLATPAK"
+    touch "$CACHE_STAMP"
+}
+
+print_cached_updates() {
+    print_tagged_cache "$CACHE_REPO" "[Pacman]  " "$C_CYAN"
+    print_tagged_cache "$CACHE_AUR" "[AUR]     " "$C_PRIMARY"
+    print_tagged_cache "$CACHE_FLATPAK" "[Flatpak] " "$C_TERTIARY"
+}
+
+print_cached_updates_or_empty() {
+    local output
+
+    output="$(print_cached_updates)"
+    if [[ -n "$output" ]]; then
+        printf '%s\n' "$output"
+    else
+        printf '%s%s%s\n' "$C_GREEN" "$NO_UPDATES_TEXT" "$C_RESET"
+    fi
+}
+
+# === 主控制逻辑 ===
+main() {
+# ---------------------------------------------------------
+    # 分支 1：Ctrl+R 触发的重载刷新进程
+    # ---------------------------------------------------------
+    if [[ $FORCE_REFRESH == 1 ]]; then
+        refresh_update_cache
+        print_cached_updates_or_empty
+        exit 0
+    fi
+
+    # ---------------------------------------------------------
+    # 分支 2：主进程逻辑，启动 fzf UI 界面
+    # ---------------------------------------------------------
+    if ! check_cmd fzf; then
+        echo "错误: 系统未安装 fzf。请先安装。" >&2
+        sleep 3
+        exit 1
+    fi
+
+    if ! cache_is_fresh "$CACHE_STAMP"; then
+        refresh_update_cache
+    fi
+
+    selection="$(
+        print_cached_updates_or_empty | fzf \
+        --ansi \
+        --prompt="📦 待更新项目 > " \
+        --layout=reverse \
+        --info=inline \
+        --header="ESC退出 | Enter更新系统 | Ctrl+R强制刷新" \
+        --bind="ctrl-r:change-prompt(⏳ 正在拉取最新数据... > )+reload('${SCRIPT_PATH}' --refresh)+change-prompt(📦 待更新项目 > )"
+    )" || return 0
+
+    if [[ "$selection" == *"$NO_UPDATES_TEXT"* ]]; then
+        clear
+        echo -e "${C_GREEN}当前没有待更新项目。${C_RESET}"
+        return 0
+    fi
+        
+    clear
+    echo -e "${C_CYAN}正在启动系统更新...${C_RESET}\n"
+
+    "$SYSUP_CMD"
+    
+    echo -e "\n${C_PRIMARY}更新流程结束${C_RESET}"
+
+    # === 智能终端暂停逻辑 ===
+    local parent_cmd
+    parent_cmd=$(ps -o comm= -p $PPID 2>/dev/null | sed 's/^-//' || true)
+    
+    if ! [[ "$parent_cmd" =~ ^(bash|zsh|fish|tcsh|tmux|screen)$ ]]; then
+        echo -e "${C_TERTIARY}按任意键关闭窗口...${C_RESET}"
+        read -r -n 1 -s
+    fi
+}
+
+main

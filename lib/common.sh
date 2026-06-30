@@ -64,12 +64,55 @@ backup_path() {
   run_cmd mv -- "$path" "$backup"
 }
 
+same_path() {
+  local src="$1"
+  local dst="$2"
+
+  [[ -e "$dst" || -L "$dst" ]] || return 1
+
+  if [[ -f "$src" && -f "$dst" ]]; then
+    cmp -s -- "$src" "$dst"
+    return $?
+  fi
+
+  if [[ -L "$src" && -L "$dst" ]]; then
+    [[ "$(readlink -- "$src")" == "$(readlink -- "$dst")" ]]
+    return $?
+  fi
+
+  return 1
+}
+
 install_file_or_dir() {
   local src="$1"
   local dst="$2"
 
   [[ -e "$src" ]] || die "Source does not exist: $src"
+
+  if [[ -d "$src" && -d "$dst" ]]; then
+    sync_dir_contents "$src" "$dst"
+    return 0
+  fi
+
+  if same_path "$src" "$dst"; then
+    log "Unchanged: $dst"
+    return 0
+  fi
+
   backup_path "$dst"
   run_cmd mkdir -p -- "$(dirname -- "$dst")"
   run_cmd cp -a -- "$src" "$dst"
+}
+
+sync_dir_contents() {
+  local src="$1"
+  local dst="$2"
+
+  [[ -d "$src" ]] || die "Source directory does not exist: $src"
+  run_cmd mkdir -p -- "$dst"
+
+  local item
+  while IFS= read -r -d '' item; do
+    install_file_or_dir "$item" "$dst/$(basename -- "$item")"
+  done < <(find "$src" -mindepth 1 -maxdepth 1 ! -name .keep -print0)
 }

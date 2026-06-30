@@ -22,6 +22,13 @@ Excluded:
 
 ## Usage
 
+First sync the curated files from the current system:
+
+```bash
+tools/sync-from-current-system.sh --dry-run
+tools/sync-from-current-system.sh
+```
+
 Dry-run first:
 
 ```bash
@@ -59,5 +66,13 @@ The installer is split into modules under `modules/`:
 - `--dry-run` prints actions without changing the system.
 - Existing config paths are backed up before overwrite.
 - Secrets are excluded by `.gitignore`.
+- `tools/sync-from-current-system.sh` only copies paths listed in `config/dotfiles-manifest.txt`.
 - Destructive cleanup is not part of this installer.
 
+## Validation
+
+Run before committing:
+
+```bash
+tools/validate-repo.sh
+```

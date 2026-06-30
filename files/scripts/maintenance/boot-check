@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NC=$'\033[0m'
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+BOLD=$'\033[1m'
+
+if [[ ! -t 1 ]]; then
+  NC=""; RED=""; GREEN=""; YELLOW=""; CYAN=""; BOLD=""
+fi
+
+ok() { printf '%sOK%s    %s\n' "$GREEN" "$NC" "$*"; }
+warn() { printf '%sWARN%s  %s\n' "$YELLOW" "$NC" "$*"; }
+miss() { printf '%sMISS%s  %s\n' "$RED" "$NC" "$*"; }
+info() { printf '%sINFO%s  %s\n' "$CYAN" "$NC" "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+section() {
+  printf '\n%s== %s ==%s\n' "$BOLD" "$1" "$NC"
+}
+
+check_pkg() {
+  local pkg="$1"
+  local why="$2"
+
+  if pacman -Qq "$pkg" >/dev/null 2>&1; then
+    ok "$pkg - $why"
+  else
+    miss "$pkg - $why"
+  fi
+}
+
+check_unit() {
+  local unit="$1"
+  local state enabled
+
+  state="$(systemctl is-active "$unit" 2>/dev/null || true)"
+  enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
+
+  case "$state/$enabled" in
+    active/enabled|active/static) ok "$unit $state/$enabled" ;;
+    not-found/*|*/not-found|/) miss "$unit not-found" ;;
+    *) warn "$unit ${state:-unknown}/${enabled:-unknown}" ;;
+  esac
+}
+
+section "启动模式 / 挂载点"
+if [[ -d /sys/firmware/efi ]]; then
+  ok "当前系统以 UEFI 模式启动"
+else
+  miss "当前系统不是 UEFI 模式；双系统 GRUB/EFI 检查不可靠"
+fi
+
+if have findmnt; then
+  for target in / /home /efi /boot; do
+    findmnt "$target" 2>/dev/null || true
+  done
+else
+  miss "findmnt - 建议安装 util-linux"
+fi
+
+if have lsblk; then
+  lsblk -f
+else
+  miss "lsblk - 建议安装 util-linux"
+fi
+
+section "引导相关包"
+check_pkg grub "GRUB 引导器"
+check_pkg efibootmgr "UEFI 启动项管理"
+check_pkg os-prober "探测 Windows 启动项"
+check_pkg grub-btrfs "把 Btrfs 快照加入 GRUB"
+check_pkg snapper "快照管理"
+check_pkg btrfs-progs "Btrfs 工具"
+
+section "GRUB 文件 / os-prober"
+if [[ -f /boot/grub/grub.cfg ]]; then
+  ok "/boot/grub/grub.cfg 存在"
+else
+  miss "/boot/grub/grub.cfg 不存在"
+fi
+
+if [[ -f /boot/grub/grub-btrfs.cfg ]]; then
+  ok "/boot/grub/grub-btrfs.cfg 存在"
+else
+  warn "/boot/grub/grub-btrfs.cfg 不存在；可能还没有生成快照菜单"
+fi
+
+if [[ -f /etc/default/grub ]]; then
+  if grep -Eq '^[[:space:]]*GRUB_DISABLE_OS_PROBER[[:space:]]*=[[:space:]]*false' /etc/default/grub; then
+    ok "GRUB_DISABLE_OS_PROBER=false"
+  else
+    warn "未看到 GRUB_DISABLE_OS_PROBER=false；Windows 菜单可能不会自动出现"
+  fi
+else
+  miss "/etc/default/grub 不存在"
+fi
+
+section "EFI 启动项"
+if have efibootmgr; then
+  if efibootmgr -v 2>/dev/null; then
+    :
+  else
+    warn "efibootmgr 读取失败；可能需要 root 权限或当前不是 UEFI"
+  fi
+else
+  miss "efibootmgr - 建议安装 efibootmgr"
+fi
+
+if have bootctl; then
+  bootctl status 2>/dev/null | sed -n '1,80p' || true
+fi
+
+section "Btrfs / Snapper / grub-btrfs"
+if have findmnt; then
+  root_fstype="$(findmnt -no FSTYPE / 2>/dev/null || true)"
+  if [[ "$root_fstype" == "btrfs" ]]; then
+    ok "/ 是 Btrfs"
+  else
+    warn "/ 不是 Btrfs: ${root_fstype:-unknown}"
+  fi
+fi
+
+if have snapper; then
+  snapper list-configs 2>/dev/null || warn "snapper list-configs 读取失败"
+else
+  miss "snapper 命令不存在"
+fi
+
+check_unit grub-btrfsd.service
+check_unit snapper-timeline.timer
+check_unit snapper-cleanup.timer
+
+section "建议复核命令"
+info "刷新 GRUB: sudo grub-mkconfig -o /boot/grub/grub.cfg"
+info "查看快照菜单: ls /boot/grub/grub-btrfs.cfg"
+info "确认 Windows: sudo os-prober"

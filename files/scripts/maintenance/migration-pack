@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DEFAULT_BACKUP_DIR="$HOME/migration-backup"
+SELF="$(readlink -f "$0")"
+
+NC=$'\033[0m'
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+BOLD=$'\033[1m'
+
+if [[ ! -t 1 ]]; then
+  NC=""; RED=""; GREEN=""; YELLOW=""; CYAN=""; BOLD=""
+fi
+
+ok() { printf '%sOK%s    %s\n' "$GREEN" "$NC" "$*"; }
+warn() { printf '%sWARN%s  %s\n' "$YELLOW" "$NC" "$*"; }
+miss() { printf '%sMISS%s  %s\n' "$RED" "$NC" "$*"; }
+info() { printf '%sINFO%s  %s\n' "$CYAN" "$NC" "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+section() {
+  printf '\n%s== %s ==%s\n' "$BOLD" "$1" "$NC"
+}
+
+menu_return_code() {
+  if [[ "${TERM_MENU_CHILD:-0}" == "1" ]]; then
+    return 10
+  fi
+  return 0
+}
+
+fzf_colors() {
+  printf '%s' 'fg:#cdd6f4,bg:-1,hl:#f9e2af,fg+:#11111b,bg+:#f9e2af,hl+:#11111b,prompt:#89b4fa,pointer:#f38ba8,marker:#a6e3a1,border:#f9e2af,header:#bac2de,label:#f9e2af,preview-fg:#cdd6f4'
+}
+
+print_preview() {
+  local action="${1:-}"
+
+  printf '\033[36m操作\033[0m  %s\n' "${action:-无}"
+
+  case "$action" in
+    pack)
+      printf '\033[36m说明\033[0m  生成迁移包\n'
+      printf '\033[36m输出\033[0m  %s\n\n' "$DEFAULT_BACKUP_DIR"
+      printf '会写入显式包清单、AUR/foreign 包清单、系统/用户启用服务清单。\n'
+      printf '会打包配置、scripts、md、pkg-deps.html，并生成 pang-arch-configs.tar.gz。\n'
+      printf 'fish/opencode 等敏感文件会单独复制到 secrets 目录并设置更严格权限。\n'
+      printf '最后生成 SHA256SUMS，方便复制到 U 盘或新系统后检查文件是否损坏。\n'
+      ;;
+    check)
+      printf '\033[36m说明\033[0m  检查迁移包\n'
+      printf '\033[36m读取\033[0m  %s\n\n' "$DEFAULT_BACKUP_DIR"
+      printf '会检查迁移目录、压缩包、包清单、服务清单、secrets 和 SHA256SUMS 是否存在。\n'
+      printf '会验证压缩包里是否包含 pkg-deps.html、scripts、md、fish、niri、opencode 等关键内容。\n'
+      printf '还会对比当前系统缺哪些显式包和 AUR 包，适合新系统恢复后查漏补缺。\n'
+      printf '检查只读，不会自动安装软件，也不会覆盖当前配置。\n'
+      ;;
+    exit)
+      printf '\033[36m说明\033[0m  退出迁移工具\n\n'
+      printf '从维护菜单进入时，退出会直接回到维护菜单。\n'
+      printf '单独在终端运行 migration-pack 时，退出只结束这个脚本。\n'
+      ;;
+    *)
+      printf '\033[36m说明\033[0m  选择要执行的迁移操作。\n'
+      ;;
+  esac
+}
+
+is_under() {
+  local path="$1"
+  local root="$2"
+  [[ "$path" == "$root" || "$path" == "$root/"* ]]
+}
+
+guard_backup_dir() {
+  local backup_dir="$1"
+  local backup_real home_real packed_root
+
+  backup_real="$(realpath -m "$backup_dir")"
+  home_real="$(realpath "$HOME")"
+
+  for packed_root in \
+    "$home_real/.config" \
+    "$home_real/.local/share/fcitx5/rime" \
+    "$home_real/scripts" \
+    "$home_real/md"
+  do
+    if is_under "$backup_real" "$packed_root"; then
+      printf '错误：输出目录不能放在会被打包的路径里: %s\n' "$packed_root" >&2
+      printf '请改用 ~/migration-backup 或 U 盘目录。\n' >&2
+      exit 1
+    fi
+  done
+}
+
+run_pack() {
+  local backup_dir="${1:-$DEFAULT_BACKUP_DIR}"
+  local archive="$backup_dir/pang-arch-configs.tar.gz"
+  local secrets_dir="$backup_dir/secrets"
+  local manifest="$backup_dir/tar-manifest.txt"
+
+  guard_backup_dir "$backup_dir"
+  mkdir -p "$backup_dir" "$secrets_dir"
+
+  printf '==> 写入包和服务清单: %s\n' "$backup_dir"
+  pacman -Qqe | sort > "$backup_dir/pkglist-explicit.txt"
+  { pacman -Qqm 2>/dev/null || true; } | sort > "$backup_dir/pkglist-foreign.txt"
+  systemctl list-unit-files --state=enabled --no-pager > "$backup_dir/system-enabled-units.txt"
+  systemctl --user list-unit-files --state=enabled --no-pager > "$backup_dir/user-enabled-units.txt" || true
+
+  printf '==> 生成打包清单\n'
+  : > "$manifest"
+
+  add_path() {
+    local rel="$1"
+    if [[ -e "$HOME/$rel" ]]; then
+      printf '%s\n' "$rel" >> "$manifest"
+    else
+      printf '    跳过不存在路径: ~/%s\n' "$rel"
+    fi
+  }
+
+  add_path ".config/niri"
+  add_path ".config/DankMaterialShell"
+  add_path ".config/nvim"
+  add_path ".config/opencode"
+  add_path ".config/fish"
+  add_path ".config/kitty"
+  add_path ".config/fcitx5"
+  add_path ".local/share/fcitx5/rime"
+  add_path ".config/paru"
+  add_path ".config/mpv"
+  add_path ".config/mako/config"
+  add_path ".config/gtk-3.0/dank-colors.css"
+  add_path ".config/gtk-4.0/dank-colors.css"
+  add_path ".config/gtk-4.0/gtk.css"
+  add_path ".config/starship.toml"
+  add_path "pkg-deps.html"
+  add_path "scripts"
+  add_path "md"
+
+  printf '==> 打包配置、脚本、文档和关系图: %s\n' "$archive"
+  tar \
+    --exclude='.git' \
+    --exclude='node_modules' \
+    --exclude='lazy-lock-backup' \
+    --exclude='.config/fish/secrets.fish' \
+    --exclude='.config/opencode/opencode.json' \
+    -czf "$archive" \
+    -C "$HOME" \
+    -T "$manifest"
+
+  printf '==> 单独复制密钥文件到: %s\n' "$secrets_dir"
+  if [[ -f "$HOME/.config/fish/secrets.fish" ]]; then
+    cp "$HOME/.config/fish/secrets.fish" "$secrets_dir/"
+  fi
+  if [[ -f "$HOME/.config/opencode/opencode.json" ]]; then
+    cp "$HOME/.config/opencode/opencode.json" "$secrets_dir/"
+  fi
+  chmod 700 "$secrets_dir"
+  find "$secrets_dir" -type f -exec chmod 600 {} +
+
+  printf '==> 生成校验文件\n'
+  (
+    cd "$backup_dir"
+    sha256sum pang-arch-configs.tar.gz tar-manifest.txt pkglist-explicit.txt pkglist-foreign.txt \
+      system-enabled-units.txt user-enabled-units.txt > SHA256SUMS
+  )
+
+  printf '\n完成: %s\n' "$backup_dir"
+  printf '下一步把整个目录复制到 U 盘、移动硬盘或私有同步目录。\n'
+}
+
+check_file() {
+  local path="$1"
+  local label="${2:-$1}"
+
+  if [[ -s "$path" ]]; then
+    ok "$label"
+  elif [[ -e "$path" ]]; then
+    warn "$label 存在但为空"
+  else
+    miss "$label"
+  fi
+}
+
+print_missing_packages() {
+  local list="$1"
+  local label="$2"
+  local tmp_current missing
+
+  [[ -f "$list" ]] || return 0
+  tmp_current="$(mktemp)"
+  pacman -Qqe | sort > "$tmp_current"
+  missing="$(comm -23 "$list" "$tmp_current" || true)"
+  rm -f "$tmp_current"
+
+  if [[ -z "$missing" ]]; then
+    ok "$label 已对齐"
+  else
+    warn "$label 缺少以下包："
+    printf '%s\n' "$missing" | sed 's/^/  /'
+  fi
+}
+
+check_archive_entry() {
+  local archive="$1"
+  local entry="$2"
+
+  if tar -tzf "$archive" "$entry" >/dev/null 2>&1; then
+    ok "压缩包包含 $entry"
+  else
+    warn "压缩包未包含 $entry"
+  fi
+}
+
+run_check() {
+  local backup_dir="${1:-$DEFAULT_BACKUP_DIR}"
+  local archive="$backup_dir/pang-arch-configs.tar.gz"
+  local tmp_foreign missing_foreign rel
+
+  section "迁移包目录"
+  if [[ -d "$backup_dir" ]]; then
+    ok "$backup_dir"
+  else
+    miss "$backup_dir 不存在"
+    info '先选择"生成迁移包"，或运行: migration-pack --pack'
+    exit 1
+  fi
+
+  check_file "$backup_dir/pkglist-explicit.txt" "pkglist-explicit.txt"
+  check_file "$backup_dir/pkglist-foreign.txt" "pkglist-foreign.txt"
+  check_file "$backup_dir/system-enabled-units.txt" "system-enabled-units.txt"
+  check_file "$backup_dir/user-enabled-units.txt" "user-enabled-units.txt"
+  check_file "$backup_dir/tar-manifest.txt" "tar-manifest.txt"
+  check_file "$archive" "pang-arch-configs.tar.gz"
+  check_file "$backup_dir/SHA256SUMS" "SHA256SUMS"
+
+  section "校验"
+  if [[ -f "$backup_dir/SHA256SUMS" ]] && have sha256sum; then
+    if (cd "$backup_dir" && sha256sum -c SHA256SUMS); then
+      ok "SHA256SUMS 校验通过"
+    else
+      miss "SHA256SUMS 校验失败"
+    fi
+  else
+    warn "无法校验 SHA256SUMS"
+  fi
+
+  section "压缩包关键内容"
+  if [[ -f "$archive" ]]; then
+    check_archive_entry "$archive" "pkg-deps.html"
+    check_archive_entry "$archive" "scripts/"
+    check_archive_entry "$archive" "md/"
+    check_archive_entry "$archive" ".config/fish/"
+    check_archive_entry "$archive" ".config/niri/"
+    check_archive_entry "$archive" ".config/opencode/"
+  else
+    warn "缺少压缩包，跳过内容检查"
+  fi
+
+  section "密钥文件"
+  if [[ -d "$backup_dir/secrets" ]]; then
+    ok "secrets 目录存在"
+    check_file "$backup_dir/secrets/secrets.fish" "secrets/secrets.fish"
+    check_file "$backup_dir/secrets/opencode.json" "secrets/opencode.json"
+  else
+    warn "secrets 目录不存在；如果没有私有密钥文件可以忽略"
+  fi
+
+  section "当前系统包差异"
+  print_missing_packages "$backup_dir/pkglist-explicit.txt" "显式包"
+  if [[ -s "$backup_dir/pkglist-foreign.txt" ]]; then
+    tmp_foreign="$(mktemp)"
+    { pacman -Qqm 2>/dev/null || true; } | sort > "$tmp_foreign"
+    missing_foreign="$(comm -23 "$backup_dir/pkglist-foreign.txt" "$tmp_foreign" || true)"
+    rm -f "$tmp_foreign"
+    if [[ -z "$missing_foreign" ]]; then
+      ok "foreign/AUR 包已对齐"
+    else
+      warn "foreign/AUR 缺少以下包："
+      printf '%s\n' "$missing_foreign" | sed 's/^/  /'
+    fi
+  else
+    info "pkglist-foreign.txt 为空"
+  fi
+
+  section "当前 HOME 恢复状态"
+  if [[ -f "$backup_dir/tar-manifest.txt" ]]; then
+    while IFS= read -r rel; do
+      [[ -n "$rel" ]] || continue
+      if [[ -e "$HOME/$rel" ]]; then
+        ok "$HOME/$rel"
+      else
+        warn "当前系统缺少 ~/$rel"
+      fi
+    done < "$backup_dir/tar-manifest.txt"
+  else
+    warn "缺少 tar-manifest.txt，无法检查恢复状态"
+  fi
+}
+
+choose_action() {
+  local options selected action
+
+  options=$'1\t生成迁移包\tpack\t写入 ~/migration-backup\n2\t检查迁移包\tcheck\t读取 ~/migration-backup\n0\t退出\texit\t不执行操作'
+
+  if have fzf; then
+    selected="$(
+      printf '%s\n' "$options" |
+        fzf \
+          --delimiter=$'\t' \
+          --with-nth=1,2,4 \
+          --height=82% \
+          --layout=reverse \
+          --border=rounded \
+          --border-label=' 迁移工具 ' \
+          --prompt='选择 > ' \
+          --preview="bash '$SELF' --preview {3}" \
+          --preview-window='down,10,border-top,wrap' \
+          --color="$(fzf_colors)"
+    )" || menu_return_code
+  else
+    printf '%s\n' "$options" | awk -F '\t' '{printf "%s  %s - %s\n", $1, $2, $4}'
+    printf '选择操作: '
+    read -r action
+    selected="$(printf '%s\n' "$options" | awk -F '\t' -v key="$action" '$1 == key {print; exit}')"
+  fi
+
+  [[ -n "${selected:-}" ]] || menu_return_code
+  action="$(awk -F '\t' '{print $3}' <<< "$selected")"
+
+  case "$action" in
+    pack) run_pack "$DEFAULT_BACKUP_DIR" ;;
+    check) run_check "$DEFAULT_BACKUP_DIR" ;;
+    exit|"") menu_return_code ;;
+    *) warn "未知操作: $action" ;;
+  esac
+}
+
+case "${1:-}" in
+  --preview)
+    print_preview "${2:-}"
+    ;;
+  --pack|pack)
+    shift
+    run_pack "${1:-$DEFAULT_BACKUP_DIR}"
+    ;;
+  --check|check)
+    shift
+    run_check "${1:-$DEFAULT_BACKUP_DIR}"
+    ;;
+  --help|-h)
+    printf '用法:\n'
+    printf '  migration-pack              交互选择生成或检查\n'
+    printf '  migration-pack --pack [DIR] 生成迁移包\n'
+    printf '  migration-pack --check [DIR] 检查迁移包\n'
+    ;;
+  "")
+    choose_action
+    ;;
+  *)
+    run_pack "$1"
+    ;;
+esac

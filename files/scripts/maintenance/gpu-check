@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NC=$'\033[0m'
+RED=$'\033[31m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+BOLD=$'\033[1m'
+
+if [[ ! -t 1 ]]; then
+  NC=""; RED=""; YELLOW=""; CYAN=""; BOLD=""
+fi
+
+section() {
+  printf '\n%s== %s ==%s\n' "$BOLD" "$1" "$NC"
+}
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+run_optional() {
+  local label="$1"
+  shift
+
+  printf '%s-- %s --%s\n' "$CYAN" "$label" "$NC"
+  if ! have "$1"; then
+    printf '%s缺少命令:%s %s\n' "$YELLOW" "$NC" "$1"
+    return 0
+  fi
+  "$@" 2>&1 || printf '%s命令失败:%s %s\n' "$RED" "$NC" "$*"
+}
+
+section "PCI 显卡"
+if have lspci; then
+  lspci -k 2>/dev/null | awk '
+    BEGIN {show=0}
+    /VGA|3D|Display/ {show=1; print; next}
+    show && /^[[:space:]]/ {print; next}
+    show {show=0}
+  '
+else
+  printf '%s缺少 lspci，建议安装 pciutils%s\n' "$YELLOW" "$NC"
+fi
+
+section "内核模块"
+if have lsmod; then
+  lsmod | grep -E '^(amdgpu|nvidia|nouveau)\b' || true
+else
+  printf '%s缺少 lsmod，建议安装 kmod%s\n' "$YELLOW" "$NC"
+fi
+
+section "默认图形栈"
+run_optional "OpenGL default" glxinfo -B
+run_optional "Vulkan default" vulkaninfo --summary
+
+section "NVIDIA"
+run_optional "nvidia-smi" nvidia-smi
+if have prime-run; then
+  run_optional "prime-run OpenGL" prime-run glxinfo -B
+  run_optional "prime-run Vulkan" prime-run vulkaninfo --summary
+else
+  printf '%s缺少 prime-run:%s 安装 nvidia-prime 后再测混合显卡\n' "$YELLOW" "$NC"
+fi

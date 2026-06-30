@@ -8,13 +8,12 @@ if [[ ! -d "$src_root" ]]; then
   return 0
 fi
 
-has_items=0
-while IFS= read -r -d '' item; do
-  has_items=1
-  rel="${item#"$src_root"/}"
-  install_file_or_dir "$item" "$dst_root/$rel"
-done < <(find "$src_root" -mindepth 1 -maxdepth 1 ! -name .keep -print0)
-
-if [[ "$has_items" -eq 0 ]]; then
+if ! find "$src_root" -mindepth 1 ! -name .keep -print -quit | grep -q .; then
   warn "files/config contains no installable items yet; skipping dotfiles"
+  return 0
 fi
+
+# Copy the contents into ~/.config instead of replacing ~/.config itself.
+# This keeps private files that are intentionally not committed, for example
+# ~/.config/opencode/opencode.json and ~/.config/fish/secrets.fish.
+sync_dir_contents "$src_root" "$dst_root"

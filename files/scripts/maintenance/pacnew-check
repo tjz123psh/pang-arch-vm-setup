@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NC=$'\033[0m'
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+BOLD=$'\033[1m'
+
+if [[ ! -t 1 ]]; then
+  NC=""; RED=""; GREEN=""; YELLOW=""; CYAN=""; BOLD=""
+fi
+
+ok() { printf '%sOK%s    %s\n' "$GREEN" "$NC" "$*"; }
+warn() { printf '%sWARN%s  %s\n' "$YELLOW" "$NC" "$*"; }
+miss() { printf '%sMISS%s  %s\n' "$RED" "$NC" "$*"; }
+info() { printf '%sINFO%s  %s\n' "$CYAN" "$NC" "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+section() {
+  printf '\n%s== %s ==%s\n' "$BOLD" "$1" "$NC"
+}
+
+section "pacnew / pacsave"
+
+if ! have pacdiff; then
+  miss "缺少 pacdiff；请安装 pacman-contrib"
+  exit 1
+fi
+
+pacdiff_output="$(pacdiff --output 2>/dev/null || true)"
+
+if [[ -z "$pacdiff_output" ]]; then
+  ok "未发现需要处理的 .pacnew / .pacsave"
+else
+  warn "发现需要人工合并或处理的配置文件："
+  printf '%s\n' "$pacdiff_output" | sed 's/^/  /'
+
+  cat <<'EOF'
+
+建议：
+  1. 更新系统后优先处理这些文件，避免新配置没有生效。
+  2. 手动交互处理：
+       sudo DIFFPROG='nvim -d' pacdiff
+  3. 只想再次列出：
+       pacdiff --output
+
+注意：pacnew-check 只负责列出，不会自动覆盖配置。
+EOF
+fi
+
+section "常见位置"
+for path in /etc /boot /usr/lib/sysusers.d /usr/lib/tmpfiles.d; do
+  if [[ -d "$path" ]]; then
+    count="$({ find "$path" \( -name '*.pacnew' -o -name '*.pacsave' -o -name '*.pacorig' \) 2>/dev/null || true; } | wc -l)"
+    if [[ "$count" -gt 0 ]]; then
+      warn "$path 有 $count 个 pacman 配置残留"
+    else
+      ok "$path 无 pacman 配置残留"
+    fi
+  fi
+done

@@ -1,0 +1,127 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "~/.config/opencode/instructions.md"
+  ],
+  "default_agent": "sisyphus-prometheus",
+  "share": "manual",
+  "autoupdate": "notify",
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "prompt": "{file:~/.config/opencode/build-prompt.md}"
+    }
+  },
+  "mcp": {
+    "sequential-thinking": {
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "enabled": true,
+      "type": "local"
+    }
+  },
+  "model": "opencode/deepseek-v4-flash-free",
+  "references": {
+    "opencode-config": {
+      "path": "~/.config/opencode",
+      "description": "Use when editing global opencode configuration, agents, skills, plugins, commands, or documentation."
+    },
+    "opencode-changelog": {
+      "path": "~/.config/opencode/changelog.md",
+      "description": "Use when auditing recurring opencode configuration incidents or checking past fixes."
+    },
+    "nvim-docs": {
+      "path": "~/md/nvim",
+      "description": "Use when Neovim configuration changes require documentation sync."
+    },
+    "linux-docs": {
+      "path": "~/md/linux",
+      "description": "Use when Linux or system configuration work needs existing local notes."
+    }
+  },
+  "provider": {
+    "anthropic": {
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "apiKey": "sk-your-key-here",
+        "baseURL": "https://muyuan.do/v1"
+      },
+      "models": {
+        "opus-4-6": {
+          "id": "claude-opus-4-6",
+          "attachment": true,
+          "modalities": {
+            "input": ["text", "image", "pdf"],
+            "output": ["text"]
+          },
+          "name": "Claude Opus 4.6 [1M]",
+          "limit": { "context": 1000000, "output": 16384 }
+        },
+        "opus-4-8": {
+          "id": "claude-opus-4-8",
+          "attachment": true,
+          "modalities": {
+            "input": ["text", "image", "pdf"],
+            "output": ["text"]
+          },
+          "name": "Claude Opus 4.8 [1M]",
+          "limit": { "context": 1000000, "output": 16384 }
+        }
+      }
+    },
+    "any": {
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "apiKey": "your-api-key",
+        "baseURL": "https://anyrouter.top/v1"
+      },
+      "models": {
+        "gpt-5.5-1m": {
+          "id": "gpt-5.5[1M]",
+          "attachment": true,
+          "modalities": {
+            "input": ["text", "image", "pdf"],
+            "output": ["text"]
+          },
+          "name": "GPT 5.5 [1M]",
+          "limit": { "context": 1000000, "output": 16384 }
+        }
+      }
+    },
+    "google": {
+      "npm": "@ai-sdk/google",
+      "models": {
+        "gemini-3.1-flash-lite": {
+          "attachment": true,
+          "id": "gemini-3.1-flash-lite",
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          },
+          "name": "Gemini 3.1 Flash Lite"
+        }
+      },
+      "options": {
+        "apiKey": "your-google-api-key"
+      }
+    }
+  },
+  "skills": {
+    "paths": [
+      "~/.config/opencode/skills"
+    ]
+  },
+  "tool_output": {
+    "max_lines": 1000,
+    "max_bytes": 30000
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 6,
+    "preserve_recent_tokens": 30000
+  }
+}

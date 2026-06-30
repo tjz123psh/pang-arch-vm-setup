@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NC=$'\033[0m'
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+BOLD=$'\033[1m'
+
+if [[ ! -t 1 ]]; then
+  NC=""; RED=""; GREEN=""; YELLOW=""; CYAN=""; BOLD=""
+fi
+
+ok() { printf '%sOK%s    %s\n' "$GREEN" "$NC" "$*"; }
+warn() { printf '%sWARN%s  %s\n' "$YELLOW" "$NC" "$*"; }
+miss() { printf '%sMISS%s  %s\n' "$RED" "$NC" "$*"; }
+info() { printf '%sINFO%s  %s\n' "$CYAN" "$NC" "$*"; }
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+pkg_installed() {
+  pacman -Qq "$1" >/dev/null 2>&1
+}
+
+section() {
+  printf '\n%s== %s ==%s\n' "$BOLD" "$1" "$NC"
+}
+
+print_cmd() {
+  local cmd="$1"
+  shift
+
+  if have "$cmd"; then
+    "$cmd" "$@" 2>/dev/null || true
+  else
+    warn "缺少命令: $cmd"
+  fi
+}
+
+check_pkg() {
+  local pkg="$1"
+  local why="$2"
+
+  if pkg_installed "$pkg"; then
+    ok "$pkg - $why"
+  else
+    miss "$pkg - $why"
+  fi
+}
+
+check_cmd() {
+  local cmd="$1"
+  local why="$2"
+
+  if have "$cmd"; then
+    ok "$cmd - $why"
+  else
+    miss "$cmd - $why"
+  fi
+}
+
+check_service() {
+  local unit="$1"
+  local scope="${2:-system}"
+  local label="${3:-$unit}"
+  local state
+
+  if [[ "$scope" == "user" ]]; then
+    state="$(systemctl --user is-active "$unit" 2>/dev/null || true)"
+  else
+    state="$(systemctl is-active "$unit" 2>/dev/null || true)"
+  fi
+
+  case "$state" in
+    active) ok "$label active" ;;
+    inactive|failed) warn "$label $state" ;;
+    *) info "$label ${state:-not-found}" ;;
+  esac
+}
+
+main() {
+  local lscpu_out="" lspci_out="" lsmod_out=""
+
+  have lscpu && lscpu_out="$(LC_ALL=C lscpu 2>/dev/null || true)"
+  have lspci && lspci_out="$(LC_ALL=C lspci -k 2>/dev/null || true)"
+  have lsmod && lsmod_out="$(lsmod 2>/dev/null || true)"
+
+  section "系统"
+  print_cmd uname -a
+  print_cmd timedatectl status
+
+  section "CPU / 微码"
+  if [[ -n "$lscpu_out" ]]; then
+    awk -F: '/Model name|Vendor ID|CPU\(s\)/ {gsub(/^[ \t]+/, "", $2); print $1 ": " $2}' <<< "$lscpu_out"
+  else
+    warn "缺少 lscpu"
+  fi
+  if grep -qi amd <<< "$lscpu_out"; then
+    check_pkg amd-ucode "AMD CPU 微码"
+  elif grep -qi intel <<< "$lscpu_out"; then
+    check_pkg intel-ucode "Intel CPU 微码"
+  else
+    warn "无法判断 CPU 厂商"
+  fi
+
+  section "图形 / GPU"
+  if [[ -n "$lspci_out" ]]; then
+    awk '
+      BEGIN {show=0}
+      /VGA|3D|Display/ {show=1; print; next}
+      show && /^[[:space:]]/ {print; next}
+      show {show=0}
+    ' <<< "$lspci_out"
+  else
+    miss "lspci - 建议安装 pciutils"
+  fi
+  if [[ -n "$lsmod_out" ]]; then
+    grep -E '^(amdgpu|nvidia|nouveau)\b' <<< "$lsmod_out" || true
+  else
+    warn "缺少 lsmod，建议安装 kmod"
+  fi
+  check_pkg mesa "AMD/Intel 图形用户态驱动"
+  check_pkg mesa-utils "glxinfo 检查工具"
+  check_pkg vulkan-tools "vulkaninfo 检查工具"
+  if grep -qi nvidia <<< "$lspci_out"; then
+    check_pkg nvidia-utils "NVIDIA 用户态工具"
+    check_pkg nvidia-prime "prime-run 混合显卡启动脚本"
+  fi
+
+  section "网络"
+  if [[ -n "$lspci_out" ]]; then
+    awk '
+      BEGIN {show=0}
+      /Ethernet|Network|Wireless/ {show=1; print; next}
+      show && /^[[:space:]]/ {print; next}
+      show {show=0}
+    ' <<< "$lspci_out"
+  fi
+  if [[ -n "$lsmod_out" ]]; then
+    grep -E '^(rtw89|r8169|iwlwifi)\b' <<< "$lsmod_out" || true
+  else
+    warn "缺少 lsmod，建议安装 kmod"
+  fi
+  check_service NetworkManager.service system "NetworkManager"
+  if have nmcli; then
+    nmcli device status 2>/dev/null || true
+  fi
+
+  section "音频"
+  check_service pipewire.service user "pipewire"
+  check_service pipewire-pulse.service user "pipewire-pulse"
+  check_service wireplumber.service user "wireplumber"
+  if have wpctl; then
+    wpctl status | sed -n '1,80p'
+  else
+    warn "缺少 wpctl"
+  fi
+  if ! pkg_installed sof-firmware; then
+    warn "sof-firmware 未安装；实机声卡异常时优先补它"
+  fi
+
+  section "存储 / Btrfs / 快照"
+  print_cmd lsblk -f
+  print_cmd findmnt /
+  print_cmd findmnt /home
+  print_cmd findmnt /efi
+  if have snapper; then
+    snapper list-configs 2>/dev/null || true
+  else
+    warn "缺少 snapper"
+  fi
+  if have smartctl; then
+    info "smartctl 已安装；需要 root 权限时用: sudo smartctl -a /dev/nvme0"
+  else
+    warn "smartmontools 未安装，无法查 SSD SMART"
+  fi
+
+  section "桌面服务"
+  check_service sddm.service system "SDDM"
+  check_service dms.service user "DMS"
+  check_service dsearch.service user "dsearch"
+  check_service power-profiles-daemon.service system "power-profiles-daemon"
+  check_service tuned.service system "tuned"
+  check_service bluetooth.service system "bluetooth"
+  check_service vmtoolsd.service system "vmtoolsd (实机应关闭)"
+
+  section "建议补齐的检查工具"
+  check_cmd glxinfo "OpenGL 检查"
+  check_cmd vulkaninfo "Vulkan 检查"
+  check_cmd nvidia-smi "NVIDIA 检查"
+  check_cmd prime-run "混合显卡 prime-run"
+  check_cmd btop "终端资源监控"
+  check_cmd powertop "功耗诊断"
+  check_cmd fwupdmgr "固件更新检查"
+}
+
+main "$@"

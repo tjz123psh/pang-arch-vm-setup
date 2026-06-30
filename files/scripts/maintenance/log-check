@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NC=$'\033[0m'
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+CYAN=$'\033[36m'
+
+if [[ ! -t 1 ]]; then
+  NC=""; RED=""; GREEN=""; CYAN=""
+fi
+
+ok() { printf '%sOK%s    %s\n' "$GREEN" "$NC" "$*"; }
+miss() { printf '%sMISS%s  %s\n' "$RED" "$NC" "$*"; }
+info() { printf '%sINFO%s  %s\n' "$CYAN" "$NC" "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+host_name() {
+  if have hostname; then
+    hostname
+  elif [[ -r /proc/sys/kernel/hostname ]]; then
+    cat /proc/sys/kernel/hostname
+  else
+    printf 'unknown'
+  fi
+}
+
+md_section() {
+  printf '\n## %s\n\n' "$1"
+}
+
+md_code_block() {
+  local content="$1"
+
+  printf '```text\n'
+  printf '%s\n' "$content"
+  printf '```\n'
+}
+
+failed_units() {
+  local scope="$1"
+
+  if [[ "$scope" == "user" ]]; then
+    systemctl --user --failed --no-legend --no-pager 2>/dev/null || true
+  else
+    systemctl --failed --no-legend --no-pager 2>/dev/null || true
+  fi
+}
+
+journal_errors() {
+  local scope="$1"
+  local lines="${2:-80}"
+
+  if [[ "$scope" == "user" ]]; then
+    journalctl --user -p 3 -b --no-pager -n "$lines" 2>/dev/null || true
+  else
+    journalctl -p 3 -b --no-pager -n "$lines" 2>/dev/null || true
+  fi
+}
+
+print_failed_units_md() {
+  local scope="$1"
+  local label="$2"
+  local output
+
+  md_section "$label"
+  output="$(failed_units "$scope")"
+  if [[ -z "$output" ]]; then
+    printf -- '- OK: 没有 failed unit\n'
+  else
+    md_code_block "$output"
+  fi
+}
+
+print_journal_errors_md() {
+  local scope="$1"
+  local label="$2"
+  local lines="${3:-80}"
+  local output
+
+  md_section "$label"
+  output="$(
+    journal_errors "$scope" "$lines" |
+      sed -E 's/([[:alnum:]_.@-]+)\[[0-9]+\]/\1[PID]/g' |
+      awk '!seen[$0]++'
+  )"
+
+  if [[ -z "$output" || "$output" == "-- No entries --" ]]; then
+    printf -- '- OK: 本次启动没有 error 级别日志\n'
+  else
+    md_code_block "$output"
+  fi
+}
+
+print_unit_hint_md() {
+  local unit="$1"
+  [[ -n "$unit" ]] || return 0
+
+  md_section "失败服务详情提示"
+  printf -- "%s\n" "- 查看系统服务: \`systemctl status $unit\`"
+  printf -- "%s\n" "- 查看系统日志: \`journalctl -u $unit -b --no-pager\`"
+}
+
+generate_report() {
+  local first_failed
+
+  printf '# 日志检查报告\n\n'
+  printf -- '- 生成时间: %s\n' "$(date '+%F %T %z')"
+  printf -- '- 主机名: %s\n' "$(host_name)"
+  printf -- '- 内核: %s\n' "$(uname -r 2>/dev/null || printf 'unknown')"
+  printf -- '- 范围: 本次启动，error 级别日志，每类最近 80 条\n'
+
+  print_failed_units_md system "系统失败服务"
+  print_failed_units_md user "用户失败服务"
+  print_journal_errors_md system "系统错误日志"
+  print_journal_errors_md user "用户错误日志"
+
+  first_failed="$(failed_units system | awk 'NR == 1 {print $1}')"
+  print_unit_hint_md "${first_failed:-}"
+}
+
+main() {
+  local report
+
+  if ! have systemctl || ! have journalctl; then
+    miss "缺少 systemctl 或 journalctl"
+    exit 1
+  fi
+
+  report="${LOG_CHECK_REPORT:-$HOME/log-check-$(date '+%Y%m%d-%H%M%S').md}"
+  generate_report > "$report"
+  ok "日志检查报告已生成"
+  info "$report"
+}
+
+main "$@"

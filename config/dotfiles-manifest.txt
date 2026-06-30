@@ -1,0 +1,36 @@
+# Curated dotfiles copied from the current system into files/config.
+# Paths are relative to ~/.config unless noted.
+# Do not include secrets, browser profiles, app caches, sync databases, or private proxy profiles.
+
+fish/config.fish
+fish/conf.d
+fish/functions
+fish/fish_variables
+
+kitty
+niri
+mpv
+mako
+fcitx5
+environment.d
+danksearch
+DankMaterialShell/settings.json
+DankMaterialShell/firefox.css
+flameshot
+glow
+gtk-3.0
+gtk-4.0
+qt5ct
+qt6ct
+nvim
+opencode/README.md
+opencode/instructions.md
+opencode/changelog.md
+opencode/opencode.example.json
+opencode/agents
+opencode/build-prompt.md
+opencode/skills
+paru/paru.conf
+starship.toml
+mimeapps.list
+user-dirs.dirs

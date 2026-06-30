@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# 描述：显示电池信息
+# Description: Show battery info
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: check-battery [options]
+
+Options:
+  -h, --help    显示帮助并退出
+
+说明:
+  读取 upower 暴露的第一个电池设备，显示型号、充放电状态、电量、健康度、
+  设计容量和当前满充容量。脚本只读，不会修改电源配置。
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    printf 'check-battery: unknown option: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+BOLD=$'\033[1m'
+RED=$'\033[1;31m'
+GREEN=$'\033[1;32m'
+YELLOW=$'\033[1;33m'
+BLUE=$'\033[1;34m'
+CYAN=$'\033[1;36m'
+NC=$'\033[0m'
+
+if [[ ! -t 1 ]]; then
+  BOLD=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""; NC=""
+fi
+
+if ! command -v upower >/dev/null 2>&1; then
+  printf '%s%s[Error] 未找到 upower，请先安装 upower。%s\n' "$RED" "$BOLD" "$NC" >&2
+  exit 127
+fi
+
+BAT_PATH="$(upower -e | awk '/battery/ {print; exit}')"
+
+if [[ -z "$BAT_PATH" ]]; then
+  printf '%s%s[Error] 未检测到电池设备%s\n' "$RED" "$BOLD" "$NC" >&2
+  exit 1
+fi
+
+INFO="$(upower -i "$BAT_PATH")"
+
+field() {
+  local key="$1"
+
+  awk -F: -v key="$key" '
+    $1 ~ "^[[:space:]]*" key "$" {
+      sub(/^[[:space:]]+/, "", $2)
+      sub(/[[:space:]]+$/, "", $2)
+      print $2
+      exit
+    }
+  ' <<< "$INFO"
+}
+
+first_number() {
+  awk '{print $1}' <<< "${1:-}"
+}
+
+MODEL="$(field model)"
+STATUS="$(field state)"
+PERCENT="$(field percentage)"
+HEALTH="$(field capacity)"
+FULL_DESIGN_TXT="$(field energy-full-design)"
+FULL_NOW_TXT="$(field energy-full)"
+FULL_DESIGN="$(first_number "$FULL_DESIGN_TXT")"
+FULL_NOW="$(first_number "$FULL_NOW_TXT")"
+
+MODEL="${MODEL:-unknown}"
+STATUS="${STATUS:-unknown}"
+PERCENT="${PERCENT:-unknown}"
+
+if [[ -z "$HEALTH" && -n "$FULL_DESIGN" && -n "$FULL_NOW" ]]; then
+  HEALTH="$(awk -v now="$FULL_NOW" -v design="$FULL_DESIGN" 'BEGIN { if (design > 0) printf "%.2f%%", (now / design) * 100 }')"
+fi
+HEALTH="${HEALTH:-unknown}"
+FULL_DESIGN_TXT="${FULL_DESIGN_TXT:-unknown}"
+FULL_NOW_TXT="${FULL_NOW_TXT:-unknown}"
+
+case "$STATUS" in
+  charging)
+    S_COLOR="$GREEN"; STATUS_TEXT="充电中 ⚡"
+    ;;
+  discharging)
+    S_COLOR="$YELLOW"; STATUS_TEXT="放电中 🔋"
+    ;;
+  fully-charged)
+    S_COLOR="$BLUE"; STATUS_TEXT="已充满 🔌"
+    ;;
+  *)
+    S_COLOR="$NC"; STATUS_TEXT="$STATUS"
+    ;;
+esac
+
+HEALTH_NUM="$(awk '{gsub(/[^0-9.]/, "", $0); split($0, a, "."); print a[1]}' <<< "$HEALTH")"
+if [[ "$HEALTH_NUM" =~ ^[0-9]+$ ]]; then
+  if (( HEALTH_NUM >= 80 )); then
+    H_COLOR="$GREEN"
+  elif (( HEALTH_NUM >= 60 )); then
+    H_COLOR="$YELLOW"
+  else
+    H_COLOR="$RED"
+  fi
+else
+  H_COLOR="$NC"
+fi
+
+printf '\n'
+printf ' %s%s=== 电池健康报告 ===%s\n\n' "$BOLD" "$CYAN" "$NC"
+printf ' %s设备型号:%s    %s\n' "$BOLD" "$NC" "$MODEL"
+printf ' %s当前状态:%s    %s%s%s\n' "$BOLD" "$NC" "$S_COLOR" "$STATUS_TEXT" "$NC"
+printf ' %s当前电量:%s    %s%s%s\n' "$BOLD" "$NC" "$S_COLOR" "$PERCENT" "$NC"
+printf '%s -----------------------%s\n' "$CYAN" "$NC"
+printf ' %s电池健康度:%s  %s%s%s\n' "$BOLD" "$NC" "$H_COLOR" "$HEALTH" "$NC"
+printf '%s -----------------------%s\n' "$CYAN" "$NC"
+printf ' %s设计容量:%s    %s\n' "$BOLD" "$NC" "$FULL_DESIGN_TXT"
+printf ' %s实际容量:%s    %s\n\n' "$BOLD" "$NC" "$FULL_NOW_TXT"

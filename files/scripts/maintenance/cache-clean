@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+# 描述：预览和清理用户级缓存
+# Description: Preview and clean user-level caches
+
+set -euo pipefail
+
+BOLD=$'\033[1m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+NC=$'\033[0m'
+
+if [[ ! -t 1 ]]; then
+  BOLD=""
+  GREEN=""
+  YELLOW=""
+  CYAN=""
+  NC=""
+fi
+
+MODE_LIST=true
+MODE_SAFE=false
+MODE_DEV=false
+MODE_CHROME=false
+ASSUME_YES=false
+
+usage() {
+  cat <<'EOF'
+Usage: cache-clean [options]
+
+默认只预览缓存体积，不删除任何文件。
+
+Options:
+  --list             只列出缓存体积（默认）
+  --safe             保守清理：go-build、pip、缩略图、opencode cache、paru-ui cache
+  --dev              开发缓存：go-build、pip、npm cache
+  --chrome           清理 Chrome HTTP/Code/GPU 缓存，不删除登录态、书签和历史
+  --all-safe         等同于 --safe --dev --chrome
+  -y, --yes          跳过确认
+  -h, --help         显示帮助并退出
+
+不处理：
+  ~/.local/share/opencode/opencode.db
+  ~/.local/share/nvim/mason
+  ~/.rustup
+  ~/.cargo
+  ~/.config/google-chrome
+EOF
+}
+
+die_usage() {
+  printf '错误: %s\n' "$1" >&2
+  usage >&2
+  exit 2
+}
+
+require_deps() {
+  local missing=()
+  local cmd
+
+  for cmd in "$@"; do
+    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+  done
+
+  if (( ${#missing[@]} > 0 )); then
+    printf '错误: 缺少依赖: %s\n' "${missing[*]}" >&2
+    exit 127
+  fi
+}
+
+info() { printf '%sINFO%s  %s\n' "$CYAN" "$NC" "$*"; }
+ok() { printf '%sOK%s    %s\n' "$GREEN" "$NC" "$*"; }
+warn() { printf '%sWARN%s  %s\n' "$YELLOW" "$NC" "$*"; }
+
+human_size() {
+  local path="$1"
+
+  if [[ -e "$path" ]]; then
+    du -sh -- "$path" 2>/dev/null | awk '{print $1}'
+  else
+    printf '-'
+  fi
+}
+
+show_item() {
+  local label="$1"
+  local path="$2"
+  local note="$3"
+  local size
+
+  size="$(human_size "$path")"
+  printf '%-28s %8s  %s\n' "$label" "$size" "$note"
+}
+
+show_list() {
+  printf '%s用户缓存体积%s\n' "$BOLD" "$NC"
+  show_item 'pacman package cache' '/var/cache/pacman/pkg' '系统级缓存，继续用 clean 管'
+  show_item 'Chrome cache' "$HOME/.cache/google-chrome" '可用 --chrome 清理'
+  show_item 'go build cache' "$HOME/.cache/go-build" '可安全重建'
+  show_item 'opencode cache' "$HOME/.cache/opencode" '只读/临时缓存'
+  show_item 'nvim cache' "$HOME/.cache/nvim" '含 jdtls 缓存，默认不删'
+  show_item 'pip cache' "$HOME/.cache/pip" '可安全重建'
+  show_item 'npm cache' "$HOME/.npm" '可用 --dev 清理'
+  show_item 'paru-ui cache' "$HOME/.cache/paru-ui" '可安全重建'
+  show_item 'thumbnails' "$HOME/.cache/thumbnails" '缩略图缓存'
+  show_item 'opencode state' "$HOME/.local/share/opencode" '状态数据，不自动删'
+  show_item 'nvim mason' "$HOME/.local/share/nvim/mason" 'LSP/DAP 工具，不自动删'
+  show_item 'rustup toolchains' "$HOME/.rustup" '工具链，不自动删'
+  show_item 'cargo home' "$HOME/.cargo" 'registry/bin/git，不自动删'
+}
+
+confirm() {
+  local title="$1"
+
+  if [[ "$ASSUME_YES" == true ]]; then
+    return 0
+  fi
+
+  printf '\n%s%s%s\n' "$YELLOW" "$title" "$NC"
+  printf '输入 yes 继续: '
+  local answer
+  read -r answer || true
+  [[ "$answer" == "yes" ]]
+}
+
+remove_dir_contents() {
+  local path="$1"
+
+  [[ -d "$path" ]] || return 0
+  find "$path" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+}
+
+remove_old_files() {
+  local path="$1"
+  local days="$2"
+
+  [[ -d "$path" ]] || return 0
+  find "$path" -type f -atime "+$days" -delete 2>/dev/null || true
+  find "$path" -type d -empty -delete 2>/dev/null || true
+}
+
+clean_safe() {
+  info '保守清理用户缓存'
+  remove_dir_contents "$HOME/.cache/go-build"
+  remove_dir_contents "$HOME/.cache/pip"
+  remove_dir_contents "$HOME/.cache/opencode"
+  remove_dir_contents "$HOME/.cache/paru-ui"
+  remove_old_files "$HOME/.cache/thumbnails" 30
+  ok '保守缓存已清理'
+}
+
+clean_dev() {
+  info '清理开发缓存'
+  remove_dir_contents "$HOME/.cache/go-build"
+  remove_dir_contents "$HOME/.cache/pip"
+
+  if command -v npm >/dev/null 2>&1; then
+    npm cache clean --force >/dev/null 2>&1 || warn 'npm cache clean 失败，已跳过'
+  elif [[ -d "$HOME/.npm/_cacache" ]]; then
+    remove_dir_contents "$HOME/.npm/_cacache"
+  fi
+
+  ok '开发缓存已清理'
+}
+
+clean_chrome_profile_cache() {
+  local profile="$1"
+  local item
+  local rels=(
+    'Cache'
+    'Code Cache'
+    'GPUCache'
+    'DawnCache'
+    'GrShaderCache'
+    'ShaderCache'
+    'Service Worker/CacheStorage'
+    'Service Worker/ScriptCache'
+  )
+
+  [[ -d "$profile" ]] || return 0
+
+  for item in "${rels[@]}"; do
+    if [[ -d "$profile/$item" ]]; then
+      remove_dir_contents "$profile/$item"
+    fi
+  done
+}
+
+clean_chrome() {
+  local chrome_cache="$HOME/.cache/google-chrome"
+  local chrome_config="$HOME/.config/google-chrome"
+  local profile
+
+  info '清理 Chrome 缓存'
+  remove_dir_contents "$chrome_cache"
+
+  if [[ -d "$chrome_config" ]]; then
+    clean_chrome_profile_cache "$chrome_config/Default"
+    while IFS= read -r -d '' profile; do
+      clean_chrome_profile_cache "$profile"
+    done < <(find "$chrome_config" -maxdepth 1 -type d -name 'Profile *' -print0 2>/dev/null)
+  fi
+
+  ok 'Chrome 缓存已清理'
+}
+
+show_plan() {
+  printf '\n%s本次清理计划%s\n' "$BOLD" "$NC"
+
+  if [[ "$MODE_SAFE" == true ]]; then
+    printf '  --safe    清理 go-build、pip、opencode 临时缓存、paru-ui、30 天前缩略图。\n'
+  fi
+
+  if [[ "$MODE_DEV" == true ]]; then
+    printf '  --dev     清理 go-build、pip、npm cache；后续构建/安装可能重新下载或生成缓存。\n'
+  fi
+
+  if [[ "$MODE_CHROME" == true ]]; then
+    printf '  --chrome  清理 Chrome HTTP/Code/GPU/Service Worker 缓存；建议先关闭 Chrome。\n'
+  fi
+
+  printf '\n不会清理：opencode 数据库、nvim mason、Rust 工具链、Cargo home、Chrome 登录态/书签/历史/扩展。\n'
+}
+
+# --- 参数解析 ---
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --list)
+      MODE_LIST=true
+      shift
+      ;;
+    --safe)
+      MODE_LIST=false
+      MODE_SAFE=true
+      shift
+      ;;
+    --dev)
+      MODE_LIST=false
+      MODE_DEV=true
+      shift
+      ;;
+    --chrome)
+      MODE_LIST=false
+      MODE_CHROME=true
+      shift
+      ;;
+    --all-safe)
+      MODE_LIST=false
+      MODE_SAFE=true
+      MODE_DEV=true
+      MODE_CHROME=true
+      shift
+      ;;
+    -y|--yes)
+      ASSUME_YES=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die_usage "未知参数: $1"
+      ;;
+  esac
+done
+
+# --- 依赖检查 ---
+require_deps du awk find rm
+
+# --- 主逻辑 ---
+if [[ "$MODE_LIST" == true ]]; then
+  show_list
+  exit 0
+fi
+
+show_list
+show_plan
+
+if ! confirm '即将按所选模式删除缓存。'; then
+  warn '已取消'
+  exit 0
+fi
+
+[[ "$MODE_SAFE" == true ]] && clean_safe
+[[ "$MODE_DEV" == true ]] && clean_dev
+[[ "$MODE_CHROME" == true ]] && clean_chrome
+
+printf '\n'
+show_list

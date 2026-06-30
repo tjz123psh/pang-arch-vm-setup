@@ -1,0 +1,797 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2059
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:$HOME/scripts/maintenance:$PATH"
+SELF="$(readlink -f "$0")"
+
+NC='\033[0m'
+DIM='\033[2m'
+BOLD='\033[1m'
+RED='\033[31m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+CYAN='\033[36m'
+
+NET_TOOL=""
+BT_TOOL=""
+
+show_cursor() {
+  if [ -t 1 ]; then
+    tput cnorm 2>/dev/null || true
+  fi
+}
+
+trap show_cursor EXIT INT TERM
+
+if systemctl is-active --quiet NetworkManager 2>/dev/null && command -v nmtui >/dev/null 2>&1; then
+  NET_TOOL="nmtui"
+fi
+
+if [ -d /sys/class/bluetooth ] && [ -n "$(ls -A /sys/class/bluetooth 2>/dev/null)" ]; then
+  if command -v bluetui >/dev/null 2>&1; then
+    BT_TOOL="bluetui"
+  elif command -v bluetuith >/dev/null 2>&1; then
+    BT_TOOL="bluetuith"
+  elif command -v blueman-manager >/dev/null 2>&1; then
+    BT_TOOL="blueman-manager"
+  elif command -v blueberry >/dev/null 2>&1; then
+    BT_TOOL="blueberry"
+  fi
+fi
+
+MAIN_ITEMS=$'01\t系统更新\t__update_menu\t待更新包、系统更新、镜像源刷新\n02\t系统清理\t__clean_menu\t系统清理、用户缓存预览/清理\n03\t快照管理\t__snapshot_menu\t查看 root/home、创建、恢复、删除快照\n04\t系统检查\t__check_menu\t硬件、GPU、电池、引导、推荐补齐、pacnew、日志检查\n05\t迁移工具\tmigration-pack\t生成或检查迁移包\n06\t联网工具\t__network_menu\t网络状态、NetworkManager、蓝牙工具\n00\t退出\t__exit\t关闭维护菜单'
+
+print_preview() {
+  local act="${1:-}"
+
+  printf '\033[36m动作\033[0m  %s\n' "${act:-无}"
+
+  case "$act" in
+    __update_menu)
+      printf '\033[36m内容\033[0m  待更新包 / 系统更新 / 镜像源刷新\n'
+      printf '\033[36m用途\033[0m  日常升级前先确认有什么要更新，再决定是否执行完整升级。\n\n'
+      printf '待更新包：只看 Pacman、AUR、Flatpak 的更新列表，适合先判断风险。\n'
+      printf '系统更新：调用 sysup，可能创建快照、更新官方仓库/AUR/Flatpak，并刷新 GRUB。\n'
+      printf '镜像源刷新：调用 mirror-update，会重写 /etc/pacman.d/mirrorlist 并保留备份。\n'
+      printf '建议顺序：待更新包 -> 系统更新；只有下载慢或镜像异常时再刷新镜像源。\n'
+      ;;
+    __clean_menu)
+      printf '\033[36m内容\033[0m  普通清理 / 深度清理 / 用户缓存预览 / 用户缓存清理 / 开发缓存清理 / Chrome 缓存清理\n'
+      printf '\033[36m用途\033[0m  清理包缓存、孤儿包、日志、回收站、旧快照和可重建用户缓存。\n\n'
+      printf '普通清理：适合日常使用，尽量保守，不会清截图/录屏目录。\n'
+      printf '深度清理：执行 clean all，会清全部包缓存、AUR 缓存、截图/录屏目录和更多快照。\n'
+      printf '用户缓存预览：调用 cache-clean，只列体积，不删除文件。\n'
+      printf '用户缓存清理：调用 cache-clean --safe，只删白名单里的可重建缓存，执行前仍需确认。\n'
+      printf '开发缓存清理：调用 cache-clean --dev，清 go-build、pip、npm cache。\n'
+      printf 'Chrome 缓存清理：调用 cache-clean --chrome，只清 HTTP/Code/GPU 缓存。\n'
+      printf '风险点：深度清理释放空间更多，但回滚余地更少，执行前必须输入 clean all 确认。\n'
+      ;;
+    __snapshot_menu)
+      printf '\033[36m内容\033[0m  查看 / 创建 / 恢复 / 删除快照\n'
+      printf '\033[36m用途\033[0m  管理 Btrfs/Snapper 的 root 和 home 快照。\n\n'
+      printf '查看快照：直接展示 root 和 home 两套列表，不再让你先选配置。\n'
+      printf '创建快照：调用 quicksave，适合更新系统、改配置、迁移前先留还原点。\n'
+      printf '恢复快照：进入 quickload，可能恢复 root/home/全系统，成功后通常会重启。\n'
+      printf '删除快照：支持多选，真正删除前必须输入 delete，避免误删。\n'
+      ;;
+    __check_menu)
+      printf '\033[36m内容\033[0m  硬件 / GPU / 电池 / 引导 / 推荐补齐 / pacnew / 日志报告\n'
+      printf '\033[36m用途\033[0m  快速判断新装机、迁移后或更新后的关键状态。\n\n'
+      printf '硬件检查：看 CPU 微码、GPU、网络、音频、Btrfs/Snapper、桌面服务和缺失工具。\n'
+      printf 'GPU 检查：专看 OpenGL/Vulkan/NVIDIA/prime-run，适合排查显卡和渲染问题。\n'
+      printf '电池检查：读取 upower 的电池状态、当前电量、健康度和容量信息。\n'
+      printf '引导检查：看 UEFI、/efi、GRUB、Windows 启动项、Snapper 和 grub-btrfs。\n'
+      printf '推荐补齐：列出当前还建议安装的双系统、脚本维护、硬件诊断和体验工具。\n'
+      printf 'pacnew 检查：列出系统更新后需要人工合并的 .pacnew/.pacsave。\n'
+      printf '日志检查：生成 failed 服务和本次启动 error 日志的 Markdown 报告。\n'
+      printf '这些检查默认只读，不会自动修复，也不会写系统配置。\n'
+      ;;
+    __network_menu)
+      printf '\033[36m内容\033[0m  网络状态 / NetworkManager / 蓝牙工具\n'
+      printf '\033[36m用途\033[0m  新装机或迁移现场先把网络和蓝牙处理好。\n\n'
+      printf '网络状态：只读显示 NetworkManager 设备状态和默认路由，先确认有没有联网。\n'
+      printf 'NetworkManager：在 nmtui 中连接 Wi-Fi、启用连接、编辑连接配置。\n'
+      printf '蓝牙工具：按 bluetui、bluetuith、blueman-manager、blueberry 顺序自动选择可用工具。\n'
+      printf '菜单只显示当前系统可用的联网/蓝牙工具，不存在的命令不会出现。\n'
+      ;;
+    checkallupdates)
+      printf '\033[36m说明\033[0m  查看待更新包\n'
+      printf '\033[36m性质\033[0m  只读为主，不会直接升级系统。\n\n'
+      printf '会读取 Pacman、AUR、Flatpak 待更新列表，优先使用缓存提高打开速度。\n'
+      printf '如果当前没有待更新项目，会明确显示“当前没有待更新项目”，不会直接进入更新。\n'
+      printf '适合在真正升级前看一眼：有没有内核、显卡驱动、桌面组件或大型 AUR 包。\n'
+      printf '选中真实更新项后 Enter 可继续执行 sysup，Ctrl+R 可强制刷新待更新缓存。\n'
+      ;;
+    sysup)
+      printf '\033[36m说明\033[0m  系统升级\n'
+      printf '\033[36m会做\033[0m  新闻检查、镜像/keyring、官方包、AUR、Flatpak、GRUB。\n\n'
+      printf '如果 Btrfs 和 quicksave 可用，更新前会先创建快照，方便失败后回滚。\n'
+      printf '更新过程中可能需要 sudo 密码，也可能遇到 pacnew、AUR 构建失败或 Flatpak 网络问题。\n'
+      printf '更新后会尝试刷新 GRUB；如果涉及内核/驱动，建议重启后再跑一次系统检查。\n'
+      ;;
+    mirror-update)
+      printf '\033[36m说明\033[0m  更新镜像源\n'
+      printf '\033[36m会写\033[0m  /etc/pacman.d/mirrorlist\n\n'
+      printf '使用 reflector 选择较新的 Arch 镜像并生成 mirrorlist，原文件会保留备份。\n'
+      printf '适合下载慢、同步失败、镜像源长期没刷新时使用；正常更新不一定每次都需要。\n'
+      printf '执行后如果 pacman 下载异常，可以用备份文件手动回滚。\n'
+      ;;
+    clean)
+      printf '\033[36m说明\033[0m  普通清理\n'
+      printf '\033[36m范围\033[0m  孤儿包、常规缓存、日志、回收站、无用 Flatpak runtime、旧快照。\n\n'
+      printf '这是日常优先使用的清理方式，目标是减体积但保留基本回滚和重装余地。\n'
+      printf '不会清截图/录屏目录，也不会把所有 pacman/AUR 缓存彻底清空。\n'
+      printf '如果只是系统变臃肿、缓存多、日志大，选这个通常够用。\n'
+      ;;
+    clean-all)
+      printf '\033[31m风险\033[0m  深度清理\n'
+      printf '\033[36m范围\033[0m  全部包缓存、AUR 缓存、截图/录屏目录、更多旧快照。\n\n'
+      printf '这是释放空间更激进的操作，执行前脚本会要求输入 clean all 二次确认。\n'
+      printf '清完后部分软件包无法直接从本地缓存降级，AUR 也可能需要重新下载/构建。\n'
+      printf '建议在确认系统稳定、重要截图录屏已整理后再用。\n'
+      ;;
+    cache-clean)
+      printf '\033[36m说明\033[0m  用户缓存预览\n'
+      printf '\033[36m性质\033[0m  只读，不删除文件。\n\n'
+      printf '列出 pacman 包缓存、Chrome 缓存、go-build、pip、npm、opencode、nvim 等目录体积。\n'
+      printf '会明确标注哪些是系统级缓存、哪些是状态数据、哪些可以用 cache-clean 的模式清理。\n'
+      printf '适合磁盘紧张时先判断空间主要花在哪里，再决定用 clean、cache-clean --safe 或手动处理。\n'
+      ;;
+    cache-clean-safe)
+      printf '\033[36m说明\033[0m  用户缓存保守清理\n'
+      printf '\033[36m范围\033[0m  go-build、pip、opencode 临时缓存、paru-ui、旧缩略图。\n\n'
+      printf '调用 cache-clean --safe，只清理白名单里的可重建用户缓存，执行前需要输入 yes 确认。\n'
+      printf '不会删除 opencode 数据库、nvim mason、Rust 工具链、Cargo registry、Chrome 配置或浏览器历史。\n'
+      printf '如果要清 npm 或 Chrome HTTP/Code/GPU 缓存，请在终端里单独运行 cache-clean --dev 或 --chrome。\n'
+      ;;
+    cache-clean-dev)
+      printf '\033[36m说明\033[0m  开发缓存清理\n'
+      printf '\033[36m范围\033[0m  go-build、pip、npm cache。\n\n'
+      printf '调用 cache-clean --dev，清理常见开发工具的可重建下载/构建缓存，执行前需要输入 yes 确认。\n'
+      printf '不会删除项目源码、node_modules、虚拟环境、Cargo registry、Rust 工具链或已安装二进制。\n'
+      printf '清完后 go、pip、npm 后续构建/安装可能需要重新下载或重新生成缓存。\n'
+      ;;
+    cache-clean-chrome)
+      printf '\033[36m说明\033[0m  Chrome 缓存清理\n'
+      printf '\033[36m范围\033[0m  Chrome HTTP cache、Code Cache、GPUCache。\n\n'
+      printf '调用 cache-clean --chrome，清理浏览器可重建缓存，执行前需要输入 yes 确认。\n'
+      printf '不会删除登录态、书签、历史记录、扩展、用户配置或 ~/.config/google-chrome。\n'
+      printf '建议先关闭 Chrome 再执行；清完后部分网页首次打开会重新下载资源。\n'
+      ;;
+    view-snapshots)
+      printf '\033[36m说明\033[0m  查看快照\n'
+      printf '\033[36m性质\033[0m  只读展示，不修改快照。\n\n'
+      printf '会读取 root 和 home 两套 Snapper 快照，并用紧凑表格展示 ID、时间、用户、清理规则和描述。\n'
+      printf '不会再直接输出 snapper 原始宽表，避免中文日期和边框在终端里换行打乱。\n'
+      printf '如果快照数量超过一屏，会优先用 less 或 more 分页查看；没有分页器时才直接输出。\n'
+      printf '用于确认更新前/迁移前/恢复前有哪些可用快照，以及快照时间和描述是否对得上。\n'
+      ;;
+    quicksave)
+      printf '\033[36m说明\033[0m  创建快照\n'
+      printf '\033[36m会写\033[0m  Snapper root/home 快照。\n\n'
+      printf '调用 quicksave 为当前 Btrfs 系统创建快照，通常会同时处理 root 和 home。\n'
+      printf '适合在系统更新、驱动调整、复制迁移配置、删除大量文件前使用。\n'
+      printf '快照不是备份到外盘，磁盘损坏或分区误删时不能替代迁移包/外部备份。\n'
+      ;;
+    quickload)
+      printf '\033[31m风险\033[0m  恢复快照\n'
+      printf '\033[36m会改\033[0m  root/home 文件状态，成功后通常自动重启。\n\n'
+      printf '进入 quickload 后选择恢复 root、home 或全系统快照，适合更新/配置失败后回滚。\n'
+      printf '执行前先查看快照时间和描述，确认不是恢复到错误时间点。\n'
+      printf '恢复 home 可能覆盖用户配置和最近文件，重要新文件先单独备份。\n'
+      ;;
+    delete-snapshot)
+      printf '\033[31m风险\033[0m  删除快照\n'
+      printf '\033[36m会改\033[0m  Snapper 快照记录和对应 Btrfs 子卷。\n\n'
+      printf '先选择 Snapper 配置，再用 Tab 多选快照 ID；不会删除编号 0 的当前状态。\n'
+      printf '真正删除前必须输入 delete，避免手滑。\n'
+      printf '删除后不能再用该快照回滚，建议先保留最近一次稳定状态和更新前快照。\n'
+      ;;
+    hw-doctor)
+      printf '\033[36m说明\033[0m  硬件检查\n'
+      printf '\033[36m性质\033[0m  只读，不会安装软件，也不会修复系统。\n\n'
+      printf '检查 CPU 微码、GPU、网络、音频、Btrfs/Snapper、桌面服务和常用诊断工具。\n'
+      printf '适合新装后确认硬件基础状态，也适合迁移后检查缺包和服务差异。\n'
+      printf '输出里的 MISS/WARN 是线索，不等于一定故障，需要结合你的硬件判断。\n'
+      ;;
+    gpu-check)
+      printf '\033[36m说明\033[0m  GPU 检查\n'
+      printf '\033[36m性质\033[0m  只读显卡/渲染诊断。\n\n'
+      printf '查看 PCI 显卡、内核模块、OpenGL、Vulkan、nvidia-smi 和 prime-run。\n'
+      printf '适合排查 niri/kitty/游戏/硬件加速异常，也能看 AMD/NVIDIA 驱动是否生效。\n'
+      printf '没有 NVIDIA 时 nvidia-smi、prime-run 缺失是正常结果；没有 vulkan-tools 时 Vulkan 信息会不完整。\n'
+      ;;
+    check-battery)
+      printf '\033[36m说明\033[0m  电池检查\n'
+      printf '\033[36m性质\033[0m  只读电池状态和健康度检查。\n\n'
+      printf '读取 upower 暴露的第一个电池设备，显示型号、充放电状态、电量、健康度、设计容量和实际满充容量。\n'
+      printf '适合笔记本实机迁移后确认电池是否正常暴露，也适合日常查看电池健康。\n'
+      printf '虚拟机、台式机或没有电池的环境会提示未检测到电池设备，这是正常结果。\n'
+      ;;
+    boot-check)
+      printf '\033[36m说明\033[0m  引导检查\n'
+      printf '\033[36m性质\033[0m  只读，不会执行 grub-install 或 grub-mkconfig。\n\n'
+      printf '检查 UEFI 模式、/efi 挂载、GRUB 文件、Windows 启动项、os-prober、grub-btrfsd、Snapper timer。\n'
+      printf '适合双系统安装后确认 Windows 和 Arch 引导是否还在，以及快照启动项链路是否完整。\n'
+      printf '如果 os-prober 缺失或 Windows 项没出现，需要单独处理，不建议盲目重装 GRUB。\n'
+      ;;
+    recommend-check)
+      printf '\033[36m说明\033[0m  推荐补齐\n'
+      printf '\033[36m性质\033[0m  只读检查，不会安装软件，也不会修改配置。\n\n'
+      printf '按当前系统状态列出还建议补齐的工具，例如 efibootmgr、os-prober、shellcheck、smartmontools、fwupd、btop、powertop、vulkan-tools。\n'
+      printf '脚本会区分必要、推荐、条件和可选四类，并在最后生成可复制的 pacman 安装命令。\n'
+      printf '适合实机迁移前确认“还要不要补装什么”，也适合新系统恢复后查缺口。\n'
+      ;;
+    pacnew-check)
+      printf '\033[36m说明\033[0m  pacnew 检查\n'
+      printf '\033[36m性质\033[0m  只读列出，不会自动覆盖配置。\n\n'
+      printf '调用 pacdiff --output 查找 .pacnew/.pacsave/.pacorig。\n'
+      printf 'Arch 更新后如果有 pacnew，说明新包带来的配置变更还没人工合并。\n'
+      printf '需要处理时再手动运行 sudo DIFFPROG="nvim -d" pacdiff。\n'
+      ;;
+    log-check)
+      printf '\033[36m说明\033[0m  日志报告\n'
+      printf '\033[36m性质\033[0m  只读生成 Markdown，不会修改 systemd 配置。\n\n'
+      printf '汇总 systemctl --failed、systemctl --user --failed、journalctl -p 3 -b。\n'
+      printf '报告默认写到 ~/log-check-YYYYMMDD-HHMMSS.md，方便回看和发送。\n'
+      printf '适合更新后、迁移后、桌面异常、引导服务异常时快速定位第一批问题。\n'
+      ;;
+    migration-pack)
+      printf '\033[36m说明\033[0m  迁移工具\n'
+      printf '\033[36m用途\033[0m  双系统实机安装前，把当前系统的包、配置、脚本、文档和关系图打成迁移资料。\n\n'
+      printf '进入后可选择生成迁移包或检查迁移包，默认目录是 ~/migration-backup。\n'
+      printf '生成内容包括：显式包/AUR 包清单、启用服务、配置目录、scripts、md、pkg-deps.html、secrets、SHA256SUMS。\n'
+      printf 'pkg-deps.html 是迁移关系图，用来看软件、命令、脚本、配置、服务之间的依赖关系。\n'
+      ;;
+    network-status)
+      printf '\033[36m说明\033[0m  网络状态\n'
+      printf '\033[36m性质\033[0m  只读，不会改网络配置。\n\n'
+      printf '显示 NetworkManager 设备状态和默认路由，适合先判断 Wi-Fi/有线是否连接、默认出口是否存在。\n'
+      printf '如果这里没有默认路由，pacman、paru、git、浏览器大概率都会联网失败。\n'
+      ;;
+    nmtui)
+      printf '\033[36m说明\033[0m  NetworkManager TUI\n'
+      printf '\033[36m会改\033[0m  你在 nmtui 中保存的网络连接配置。\n\n'
+      printf '打开 NetworkManager 终端界面，可连接 Wi-Fi、编辑连接、启用/停用连接、设置主机名。\n'
+      printf '适合刚装完系统还没有图形网络面板时使用；退出 nmtui 后会回到维护菜单。\n'
+      ;;
+    bluetui|bluetuith|blueman-manager|blueberry)
+      printf '\033[36m说明\033[0m  蓝牙工具\n'
+      printf '\033[36m会改\033[0m  取决于工具内操作，可能配对、连接或移除蓝牙设备。\n\n'
+      printf '打开当前可用的蓝牙管理工具。脚本会优先选择 bluetui，其次 bluetuith、blueman-manager、blueberry。\n'
+      printf '适合连接键盘、鼠标、耳机；如果菜单没有此项，通常是没有蓝牙控制器或缺少工具。\n'
+      ;;
+    __back)
+      printf '\033[36m说明\033[0m  返回上一级菜单\n\n'
+      printf '在子菜单里选择它或按 Esc，会立即回到维护菜单，不会进入底部返回栏。\n'
+      ;;
+    __exit)
+      printf '\033[36m说明\033[0m  关闭维护菜单\n'
+      printf '\033[36m行为\033[0m  主页退出和子菜单返回不同。\n\n'
+      printf '如果当前窗口是 Niri 的 term-menu 专用窗口，会关闭该窗口。\n'
+      printf '如果是在普通终端里手动运行，只退出脚本回 shell。\n'
+      printf '子菜单里的“返回”只是回维护菜单，不会关闭终端窗口。\n'
+      ;;
+    *)
+      printf '\033[36m说明\033[0m  %s\n' "执行 $act"
+      ;;
+  esac
+}
+
+if [[ "${1:-}" == "--preview" ]]; then
+  print_preview "${2:-}"
+  exit 0
+fi
+
+fzf_colors() {
+  printf '%s' 'fg:#cdd6f4,bg:-1,hl:#f9e2af,fg+:#11111b,bg+:#f9e2af,hl+:#11111b,prompt:#89b4fa,pointer:#f38ba8,marker:#a6e3a1,border:#f9e2af,header:#bac2de,label:#f9e2af,preview-fg:#cdd6f4'
+}
+
+choose_menu() {
+  local title="$1"
+  local items="$2"
+  local selected choice key label act desc status
+
+  if command -v fzf >/dev/null 2>&1; then
+    set +e
+    selected="$(
+      printf "%s\n" "$items" |
+        fzf \
+          --delimiter=$'\t' \
+          --with-nth=1,2 \
+          --height=96% \
+          --min-height=24 \
+          --layout=reverse \
+          --border=rounded \
+          --border-label=" $title " \
+          --prompt='选择 > ' \
+          --pointer='▶' \
+          --marker='✓' \
+          --info=hidden \
+          --no-separator \
+          --header='Enter 执行 · Esc 返回/退出' \
+          --preview-window='down,12,border-top,wrap' \
+          --preview="bash '$SELF' --preview {3}" \
+          --color="$(fzf_colors)"
+    )"
+    status=$?
+    set -e
+    [ "$status" -eq 0 ] || return 1
+  else
+    printf "${CYAN}%s${NC}\n" "$title"
+    printf "${DIM}────────────────────────────────────────${NC}\n"
+    while IFS=$'\t' read -r key label act desc; do
+      [ -n "$key" ] || continue
+      if [ "$act" = "__exit" ]; then
+        printf "  ${CYAN}%s${NC}  %-12s ${DIM}%s${NC}\n" "$key" "$label" "$desc"
+      else
+        printf "  ${CYAN}%s${NC}  %-12s ${DIM}%-18s${NC} %s\n" "$key" "$label" "$act" "$desc"
+      fi
+    done <<< "$items"
+    printf "${DIM}────────────────────────────────────────${NC}\n"
+    read -rp "选择操作: " choice
+    selected="$(printf "%s\n" "$items" | awk -F '\t' -v key="$choice" '$1 == key || $1 + 0 == key {print; exit}')"
+    [ -n "$selected" ] || return 1
+  fi
+
+  printf '%s\n' "$selected"
+}
+
+run_command() {
+  local act="$1"
+
+  if command -v "$act" >/dev/null 2>&1; then
+    if [ "$act" = "migration-pack" ]; then
+      if TERM_MENU_CHILD=1 "$act"; then
+        return 0
+      else
+        return $?
+      fi
+    elif "$act"; then
+      return 0
+    else
+      return $?
+    fi
+  else
+    printf "${RED}命令不可用:${NC} %s\n" "$act"
+  fi
+}
+
+exit_menu() {
+  if command -v niri >/dev/null 2>&1; then
+    if niri msg -j focused-window 2>/dev/null | grep -q '"app_id":"term-menu"'; then
+      niri msg action close-window >/dev/null 2>&1 || true
+    fi
+  fi
+
+  exit 0
+}
+
+show_update_menu() {
+  local items selected key label act desc
+  items=$'01\t待更新包\tcheckallupdates\t查看 Pacman、AUR、Flatpak 待更新列表\n02\t系统更新\tsysup\t同步官方仓库、AUR、Flatpak，并刷新引导配置\n03\t更新镜像源\tmirror-update\t刷新 pacman mirrorlist，自动保留回滚备份\n00\t返回\t__back\t返回维护菜单'
+  selected="$(choose_menu "系统更新" "$items")" || return 10
+  IFS=$'\t' read -r key label act desc <<< "$selected"
+  [ "$act" = "__back" ] && return 10
+  run_action "$label" "$act"
+}
+
+show_clean_menu() {
+  local items selected key label act desc
+  items=$'01\t普通清理\tclean\t清理孤儿包、缓存、日志、回收站和无用运行时\n02\t深度清理\tclean-all\t清理全部包缓存、AUR 缓存、截图/录屏和更多快照\n03\t用户缓存预览\tcache-clean\t只列用户缓存体积，不删除文件\n04\t用户缓存清理\tcache-clean-safe\t保守清理可重建用户缓存，执行前确认\n05\t开发缓存清理\tcache-clean-dev\t清理 go-build、pip、npm cache\n06\tChrome缓存清理\tcache-clean-chrome\t清理 Chrome HTTP/Code/GPU 缓存\n00\t返回\t__back\t返回维护菜单'
+  selected="$(choose_menu "系统清理" "$items")" || return 10
+  IFS=$'\t' read -r key label act desc <<< "$selected"
+  [ "$act" = "__back" ] && return 10
+  run_action "$label" "$act"
+}
+
+show_snapshot_menu() {
+  local items selected key label act desc
+  items=$'01\t查看快照\tview-snapshots\t直接展示 root 和 home 的快照\n02\t创建快照\tquicksave\t为当前 Btrfs 系统创建 quicksave 快照\n03\t恢复快照\tquickload\t从 Btrfs 快照恢复系统，完成后会重启\n04\t删除快照\tdelete-snapshot\t选择 Snapper 配置和快照 ID 后删除\n00\t返回\t__back\t返回维护菜单'
+  selected="$(choose_menu "快照管理" "$items")" || return 10
+  IFS=$'\t' read -r key label act desc <<< "$selected"
+  [ "$act" = "__back" ] && return 10
+  run_action "$label" "$act"
+}
+
+show_check_menu() {
+  local items selected key label act desc
+  items=$'01\t硬件检查\thw-doctor\t检查 CPU、GPU、网络、音频、存储、服务和缺失工具\n02\tGPU 检查\tgpu-check\t验证 OpenGL、Vulkan、NVIDIA 和 prime-run\n03\t电池检查\tcheck-battery\t读取 upower 电池状态、电量、健康度和容量\n04\t引导检查\tboot-check\t检查 UEFI、GRUB、Windows 启动项、Snapper 和 grub-btrfs\n05\t推荐补齐\trecommend-check\t列出建议安装的双系统、诊断、脚本维护和体验工具\n06\tpacnew 检查\tpacnew-check\t列出系统更新后需要人工合并的配置文件\n07\t日志检查\tlog-check\t生成 failed 服务和本次启动 error 日志报告\n00\t返回\t__back\t返回维护菜单'
+  selected="$(choose_menu "系统检查" "$items")" || return 10
+  IFS=$'\t' read -r key label act desc <<< "$selected"
+  [ "$act" = "__back" ] && return 10
+  run_action "$label" "$act"
+}
+
+show_network_menu() {
+  local items selected key label act desc
+  items=$'01\t网络状态\tnetwork-status\t显示 NetworkManager 设备和默认路由'
+  if [ -n "$NET_TOOL" ]; then
+    items+=$'\n02\tNetworkManager\t'"$NET_TOOL"$'\t打开 NetworkManager 终端网络配置'
+  fi
+  if [ -n "$BT_TOOL" ]; then
+    items+=$'\n03\t蓝牙工具\t'"$BT_TOOL"$'\t打开可用的蓝牙管理工具'
+  fi
+  items+=$'\n00\t返回\t__back\t返回维护菜单'
+
+  selected="$(choose_menu "联网工具" "$items")" || return 10
+  IFS=$'\t' read -r key label act desc <<< "$selected"
+  [ "$act" = "__back" ] && return 10
+  run_action "$label" "$act"
+}
+
+show_snapshots() {
+  local conf cols desc_width tmp line_count page_lines
+
+  if ! command -v snapper >/dev/null 2>&1; then
+    printf "${RED}缺少依赖:${NC} snapper\n"
+    return 1
+  fi
+
+  cols="$(tput cols 2>/dev/null || true)"
+  if [[ ! "$cols" =~ ^[0-9]+$ ]]; then
+    cols=80
+  fi
+
+  desc_width=$((cols - 58))
+  if [ "$desc_width" -lt 16 ]; then
+    desc_width=16
+  elif [ "$desc_width" -gt 38 ]; then
+    desc_width=38
+  fi
+
+  draw_line() {
+    local count="$1"
+    printf '─%.0s' $(seq 1 "$count")
+  }
+
+  compact_text() {
+    local text="$1"
+    local max="$2"
+
+    if [ "${#text}" -gt "$max" ]; then
+      printf '%s...' "${text:0:max-3}"
+    else
+      printf '%s' "$text"
+    fi
+  }
+
+  print_snapshot_list() {
+    local conf="$1"
+    local rows number date user cleanup desc
+    local date_display desc_display
+    local sep=$'\037'
+    local count=0 entries="" status status_color line_width
+
+    line_width=$((cols - 8))
+    if [ "$line_width" -lt 58 ]; then
+      line_width=58
+    elif [ "$line_width" -gt 88 ]; then
+      line_width=88
+    fi
+
+    if ! rows="$(snapper --csvout --separator "$sep" --iso -c "$conf" list --columns number,date,user,cleanup,description 2>/dev/null)"; then
+      printf "\n${CYAN}${BOLD}╭─ %s 快照${NC}\n" "$conf"
+      printf "${DIM}│${NC} ${YELLOW}配置不存在或无法读取:${NC} %s\n" "$conf"
+      printf "${CYAN}╰"; draw_line "$line_width"; printf "${NC}\n"
+      return 0
+    fi
+
+    while IFS="$sep" read -r number date user cleanup desc; do
+      [ "$number" = "number" ] && continue
+      [ -n "$number" ] || continue
+
+      if [ -n "$date" ]; then
+        date_display="${date%:*}"
+        status="快照"
+        status_color="$CYAN"
+      else
+        date_display="当前"
+        status="当前"
+        status_color="$GREEN"
+      fi
+
+      [ -n "$user" ] || user="-"
+      [ -n "$cleanup" ] || cleanup="-"
+      [ -n "$desc" ] || desc="-"
+      desc_display="$(compact_text "$desc" "$desc_width")"
+      count=$((count + 1))
+
+      entries+=$(printf "${DIM}│${NC} %b%-4s%b  ${YELLOW}#%-4s${NC} %-16s  %-8s %-8s %s" \
+        "$status_color" "$status" "$NC" "$number" "$date_display" "$user" "$cleanup" "$desc_display")
+      entries+=$'\n'
+    done <<< "$rows"
+
+    printf "\n${CYAN}${BOLD}╭─ %s 快照${NC} ${DIM}%s 个条目${NC}\n" "$conf" "$count"
+    printf "${DIM}│${NC} %-4s  %-5s %-16s  %-8s %-8s %s\n" "状态" "ID" "时间" "用户" "清理" "描述"
+    printf "${CYAN}├"; draw_line "$line_width"; printf "${NC}\n"
+    if [ -n "$entries" ]; then
+      printf "%s" "$entries"
+    else
+      printf "${DIM}│${NC} ${YELLOW}没有快照记录${NC}\n"
+    fi
+    printf "${CYAN}╰"; draw_line "$line_width"; printf "${NC}\n"
+  }
+
+  tmp="$(mktemp)"
+  {
+    for conf in root home; do
+      print_snapshot_list "$conf"
+    done
+
+    printf "\n${DIM}这里只查看快照；恢复用 quickload，删除用\"删除快照\"。${NC}\n"
+  } > "$tmp"
+
+  line_count="$(wc -l < "$tmp")"
+  page_lines="$(tput lines 2>/dev/null || true)"
+  if [[ ! "$page_lines" =~ ^[0-9]+$ ]]; then
+    page_lines=24
+  fi
+  page_lines=$((page_lines - 4))
+
+  if [ -t 1 ] && [ "$line_count" -gt "$page_lines" ]; then
+    if command -v less >/dev/null 2>&1; then
+      LESS=FRX less -R "$tmp"
+    elif command -v more >/dev/null 2>&1; then
+      more "$tmp"
+    else
+      cat "$tmp"
+    fi
+  else
+    cat "$tmp"
+  fi
+
+  rm -f "$tmp"
+}
+
+delete_snapshot() {
+  if ! command -v snapper >/dev/null 2>&1 || ! command -v quicksave >/dev/null 2>&1; then
+    printf "${RED}缺少依赖:${NC} snapper 或 quicksave\n"
+    return 1
+  fi
+
+  local conf snapshots selected snap_ids=() snap_id snap_date snap_desc confirm
+  local sep=$'\037'
+  local config_rows config_name subvolume config_items index
+  local snap_rows number date desc
+
+  config_rows="$(snapper --csvout --separator "$sep" list-configs 2>/dev/null || true)"
+  config_items=""
+  index=1
+
+  while IFS="$sep" read -r config_name subvolume; do
+    [ "$config_name" = "config" ] && continue
+    [ -n "$config_name" ] || continue
+
+    config_items+=$(printf "%02d\t%s\t%s\t删除 %s 下的快照" "$index" "$config_name" "$config_name" "${subvolume:-该配置}")
+    config_items+=$'\n'
+    index=$((index + 1))
+  done <<< "$config_rows"
+
+  if [ -z "$config_items" ]; then
+    printf "${RED}未找到 Snapper 配置${NC}\n"
+    return 1
+  fi
+
+  conf="$(choose_menu "选择快照配置" "$config_items")" || return 0
+  IFS=$'\t' read -r _ _ conf _ <<< "$conf"
+  [ -z "$conf" ] && return 0
+
+  snap_rows="$(snapper --csvout --separator "$sep" --iso -c "$conf" list --columns number,date,description 2>/dev/null || true)"
+  snapshots=""
+
+  while IFS="$sep" read -r number date desc; do
+    [ "$number" = "number" ] && continue
+    [[ "$number" =~ ^[0-9]+$ ]] || continue
+    [ "$number" != "0" ] || continue
+
+    if [ -n "$date" ]; then
+      date="${date%:*}"
+    else
+      date="当前"
+    fi
+
+    [ -n "$desc" ] || desc="(无描述)"
+    desc="${desc//$'\t'/ }"
+    snapshots+=$(printf "%s\t%s\t%s" "$number" "$date" "$desc")
+    snapshots+=$'\n'
+  done <<< "$snap_rows"
+
+  if [ -z "$snapshots" ]; then
+    printf "${YELLOW}配置 [%s] 没有可删除快照${NC}\n" "$conf"
+    return 0
+  fi
+
+  if command -v fzf >/dev/null 2>&1; then
+    selected=$(
+      printf "%s\n" "$snapshots" |
+        fzf \
+          --delimiter=$'\t' \
+          --with-nth=1,2,3 \
+          --multi \
+          --height=82% \
+          --layout=reverse \
+          --border=rounded \
+          --border-label=" 删除快照 [$conf] " \
+          --prompt='快照 > ' \
+          --header='Tab 多选 · Shift+Tab 取消 · Enter 确认 · Esc 取消' \
+          --preview='printf "\033[36mID\033[0m    {1}\n\033[36m时间\033[0m  {2}\n\033[36m描述\033[0m  {3}\n"' \
+          --preview-window='down,5,border-top' \
+          --info=hidden \
+          --no-separator \
+          --color="$(fzf_colors)"
+    ) || return 0
+  else
+    printf "%s\n" "$snapshots"
+    printf "\n输入要删除的快照 ID，多个用空格分隔: "
+    read -r snap_id
+    selected="$snap_id"
+  fi
+
+  [ -z "$selected" ] && return 0
+
+  printf "${YELLOW}准备删除:${NC} 配置 [%s]\n" "$conf"
+  while IFS= read -r line; do
+    if [[ "$line" == *$'\t'* ]]; then
+      IFS=$'\t' read -r snap_id snap_date snap_desc <<< "$line"
+    else
+      snap_id="$line"
+      snap_date=""
+      snap_desc=""
+    fi
+
+    if [[ ! "$snap_id" =~ ^[0-9]+$ ]]; then
+      printf "${RED}无效快照 ID:${NC} %s\n" "$snap_id"
+      return 1
+    fi
+
+    snap_ids+=("$snap_id")
+    printf "  #%s" "$snap_id"
+    [ -n "${snap_date:-}" ] && printf "  %s" "$snap_date"
+    [ -n "${snap_desc:-}" ] && printf "  %s" "$snap_desc"
+    printf "\n"
+  done <<< "$selected"
+
+  printf "\n输入 ${RED}delete${NC} 确认删除: "
+  read -r confirm
+  if [ "$confirm" != "delete" ]; then
+    printf "已取消。\n"
+    return 0
+  fi
+
+  for snap_id in "${snap_ids[@]}"; do
+    quicksave -c "$conf" -del "$snap_id"
+  done
+}
+
+run_clean_all() {
+  local confirm
+
+  printf "${RED}深度清理会执行 clean all。${NC}\n"
+  printf "这会清理全部包缓存、AUR 缓存、截图/录屏目录，以及更多快照。\n\n"
+  printf "输入 ${RED}clean all${NC} 确认执行: "
+  read -r confirm
+  if [ "$confirm" != "clean all" ]; then
+    printf "已取消。\n"
+    return 0
+  fi
+
+  clean all
+}
+
+run_cache_clean_safe() {
+  cache-clean --safe
+}
+
+run_cache_clean_dev() {
+  cache-clean --dev
+}
+
+run_cache_clean_chrome() {
+  cache-clean --chrome
+}
+
+show_network_status() {
+  if command -v nmcli >/dev/null 2>&1; then
+    nmcli device status || true
+  else
+    printf "${YELLOW}缺少 nmcli${NC}\n"
+  fi
+
+  printf "\n${CYAN}默认路由${NC}\n"
+  ip route show default 2>/dev/null || true
+}
+
+ui_rule() {
+  local count="$1"
+  local i
+
+  for ((i = 0; i < count; i++)); do
+    printf '─'
+  done
+}
+
+pause_for_menu() {
+  local cols width
+
+  cols="$(tput cols 2>/dev/null || true)"
+  if [[ ! "$cols" =~ ^[0-9]+$ ]]; then
+    cols=80
+  fi
+
+  width=$((cols - 8))
+  if [ "$width" -lt 36 ]; then
+    width=36
+  elif [ "$width" -gt 88 ]; then
+    width=88
+  fi
+
+  printf "\n${CYAN}╭─ 返回维护菜单${NC}\n"
+  printf "${DIM}│${NC} 任意键返回\n"
+  printf "${CYAN}╰"
+  ui_rule "$width"
+  printf "${NC}"
+
+  if [ -t 1 ]; then
+    tput civis 2>/dev/null || true
+  fi
+  IFS= read -r -s -n 1 || true
+  show_cursor
+}
+
+run_action() {
+  local label="$1"
+  local act="$2"
+
+  if [ "$act" = "__exit" ]; then
+    exit_menu
+  fi
+
+  clear
+  printf "${CYAN}==>${NC} %s ${DIM}(%s)${NC}\n\n" "$label" "$act"
+
+  case "$act" in
+    __update_menu) show_update_menu ;;
+    __clean_menu) show_clean_menu ;;
+    __snapshot_menu) show_snapshot_menu ;;
+    __check_menu) show_check_menu ;;
+    __network_menu) show_network_menu ;;
+    clean-all) run_clean_all ;;
+    cache-clean-safe) run_cache_clean_safe ;;
+    cache-clean-dev) run_cache_clean_dev ;;
+    cache-clean-chrome) run_cache_clean_chrome ;;
+    delete-snapshot) delete_snapshot ;;
+    view-snapshots) show_snapshots ;;
+    network-status) show_network_status ;;
+    blueman-manager|blueberry)
+      "$act" &
+      printf "${GREEN}已启动:${NC} %s\n" "$label"
+      sleep 1
+      ;;
+    *)
+      run_command "$act"
+      ;;
+  esac
+}
+
+show_main_menu() {
+  local selected key label act desc
+  selected="$(choose_menu "维护菜单" "$MAIN_ITEMS")" || exit_menu
+  IFS=$'\t' read -r key label act desc <<< "$selected"
+  run_action "$label" "$act"
+}
+
+while true; do
+  clear
+  if show_main_menu; then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -eq 10 ]; then
+    continue
+  fi
+  pause_for_menu
+  clear
+done
