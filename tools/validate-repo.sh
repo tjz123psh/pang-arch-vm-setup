@@ -30,4 +30,9 @@ if grep -RInE '(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-
   exit 1
 fi
 
+if grep -RInE '(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{40,}|-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----)' templates 2>/dev/null; then
+  echo "High-confidence secret pattern found under templates/" >&2
+  exit 1
+fi
+
 echo "repo validation ok"

@@ -22,6 +22,8 @@ Excluded:
 
 ## Usage
 
+For a fresh VM, follow [docs/NEW-VM.md](docs/NEW-VM.md).
+
 First sync the curated files from the current system:
 
 ```bash

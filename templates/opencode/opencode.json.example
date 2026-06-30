@@ -1,0 +1,60 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "~/.config/opencode/instructions.md"
+  ],
+  "default_agent": "sisyphus-prometheus",
+  "share": "manual",
+  "autoupdate": "notify",
+  "model": "opencode/deepseek-v4-flash-free",
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "prompt": "{file:~/.config/opencode/build-prompt.md}"
+    }
+  },
+  "references": {
+    "opencode-config": {
+      "path": "~/.config/opencode",
+      "description": "Use when editing global opencode configuration, agents, skills, plugins, commands, or documentation."
+    },
+    "opencode-changelog": {
+      "path": "~/.config/opencode/changelog.md",
+      "description": "Use when auditing recurring opencode configuration incidents or checking past fixes."
+    },
+    "nvim-docs": {
+      "path": "~/md/nvim",
+      "description": "Use when Neovim configuration changes require documentation sync."
+    },
+    "linux-docs": {
+      "path": "~/md/linux",
+      "description": "Use when Linux or system configuration work needs existing local notes."
+    }
+  },
+  "skills": {
+    "paths": [
+      "~/.config/opencode/skills"
+    ]
+  },
+  "tool_output": {
+    "max_lines": 1000,
+    "max_bytes": 30000
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 6,
+    "preserve_recent_tokens": 30000
+  },
+  "mcp": {
+    "sequential-thinking": {
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "enabled": true,
+      "type": "local"
+    }
+  }
+}
