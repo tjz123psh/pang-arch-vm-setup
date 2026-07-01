@@ -526,7 +526,7 @@ install_selected() {
     }
   fi
 
-  paru -S -- "$pkg"
+  paru -S --skipreview -- "$pkg"
 }
 
 install_refs() {
@@ -557,7 +557,7 @@ install_refs() {
     return 1
   fi
 
-  paru -S -- "${install_args[@]}"
+  paru -S --skipreview -- "${install_args[@]}"
 }
 
 review_selected() {

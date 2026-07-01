@@ -40,5 +40,5 @@ if [[ "$WITH_APPS" -eq 1 ]]; then
   aur_packages+=("${app_aur_packages[@]}")
 fi
 if ((${#aur_packages[@]})); then
-  run_cmd paru -S --needed --noconfirm "${aur_packages[@]}"
+  run_cmd paru -S --needed --noconfirm --skipreview "${aur_packages[@]}"
 fi
