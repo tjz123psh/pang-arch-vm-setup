@@ -70,6 +70,11 @@ if [[ -f "$bad_nvim_color_plugin" ]]; then
   run_cmd rm -f "$bad_nvim_color_plugin"
 fi
 
+bad_nvim_color_package="$HOME/.local/share/nvim/lazy/base16-nvim"
+if [[ -d "$bad_nvim_color_package" ]]; then
+  run_cmd rm -rf "$bad_nvim_color_package"
+fi
+
 if command -v fish >/dev/null 2>&1; then
   fish_path="$(command -v fish)"
   current_shell="$(getent passwd "$USER" | cut -d: -f7)"
