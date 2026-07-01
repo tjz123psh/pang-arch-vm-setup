@@ -66,7 +66,8 @@ With optional daily apps:
 ./install.sh --with-apps
 ```
 
-The DMS step runs the upstream installer:
+The DMS step runs the upstream installer only when `dms` is not already
+installed:
 
 ```bash
 curl -fsSL https://install.danklinux.com | sh
