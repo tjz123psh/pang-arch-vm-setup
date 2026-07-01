@@ -22,8 +22,17 @@ for unit in "${system_units[@]}"; do
   fi
 done
 
+# DMS owns notifications in this profile. Do not install mako; only disable
+# stale mako units when they already exist on the target system.
 if systemctl --user list-unit-files mako.service >/dev/null 2>&1; then
-  run_cmd systemctl --user disable --now mako.service
+  run_cmd systemctl --user disable mako.service
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    run_cmd systemctl --user stop mako.service
+  elif systemctl --user is-active --quiet mako.service; then
+    run_cmd systemctl --user stop mako.service || warn "Failed to stop mako.service"
+  else
+    log "mako.service is not active; skipping stop"
+  fi
 fi
 
 for unit in "${user_units[@]}"; do
