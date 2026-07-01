@@ -1,8 +1,0 @@
-# Daily app packages from AUR.
-# Installed by ./install.sh.
-# These are binary/repackaged apps, so review PKGBUILDs before installing.
-
-google-chrome
-linuxqq-appimage
-obsidian-bin
-wechat-universal-bwrap

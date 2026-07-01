@@ -2,8 +2,6 @@
 
 pacman_list="$ROOT_DIR/config/pacman-packages.txt"
 aur_list="$ROOT_DIR/config/aur-packages.txt"
-app_pacman_list="$ROOT_DIR/config/app-pacman-packages.txt"
-app_aur_list="$ROOT_DIR/config/app-aur-packages.txt"
 
 read_package_list() {
   local list="$1"
@@ -51,8 +49,6 @@ ensure_paru() {
 }
 
 mapfile -t pacman_packages < <(read_package_list "$pacman_list")
-mapfile -t app_pacman_packages < <(read_package_list "$app_pacman_list")
-pacman_packages+=("${app_pacman_packages[@]}")
 if ((${#pacman_packages[@]})); then
   run_cmd sudo pacman -S --needed --noconfirm "${pacman_packages[@]}"
 fi
@@ -60,8 +56,6 @@ fi
 ensure_paru
 
 mapfile -t aur_packages < <(read_package_list "$aur_list")
-mapfile -t app_aur_packages < <(read_package_list "$app_aur_list")
-aur_packages+=("${app_aur_packages[@]}")
 filter_aur_packages aur_packages
 if ((${#aur_packages[@]})); then
   run_cmd paru -S --needed --noconfirm --skipreview "${aur_packages[@]}"

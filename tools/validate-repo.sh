@@ -5,10 +5,24 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 cd "$ROOT_DIR"
 
-find . -type f \( -name '*.sh' -o -path './install.sh' \) -print | sort | xargs -r bash -n
-find . -type f \( -name '*.sh' -o -path './install.sh' \) -print | sort | xargs -r shellcheck -x
-bash -n files/scripts/package/paru-ui
-shellcheck -x files/scripts/package/paru-ui
+mapfile -d '' shell_files < <(
+  find install.sh modules tools files/config/opencode/skills/tool/ocr/scripts \
+    -type f \( -name '*.sh' -o -path 'install.sh' \) -print0 | sort -z
+)
+
+if ((${#shell_files[@]})); then
+  bash -n "${shell_files[@]}"
+  shellcheck -x "${shell_files[@]}"
+fi
+
+mapfile -d '' script_files < <(
+  find files/scripts -type f -perm -111 -print0 | sort -z
+)
+
+if ((${#script_files[@]})); then
+  bash -n "${script_files[@]}"
+  shellcheck -x "${script_files[@]}"
+fi
 
 ./install.sh --dry-run --skip-dms -y >/dev/null
 

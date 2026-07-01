@@ -8,3 +8,9 @@ leaf-markdown-viewer-bin
 rime-ice-git
 rime-wanxiang-gram-zh-hans
 fcitx5-skin-fluentdark-git
+
+# Daily desktop apps.
+google-chrome
+linuxqq-appimage
+obsidian-bin
+wechat-universal-bwrap

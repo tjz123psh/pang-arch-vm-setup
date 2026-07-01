@@ -1,2 +1,0 @@
-# Daily app packages from official repositories.
-# Installed by ./install.sh.

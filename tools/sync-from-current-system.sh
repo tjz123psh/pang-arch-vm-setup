@@ -79,6 +79,23 @@ copy_scripts() {
   run_cmd cp -a -- "$src" "$dst"
 }
 
+copy_pictures() {
+  local rel src dst
+  for rel in "头像" "图像"; do
+    src="$HOME/Pictures/$rel"
+    dst="$ROOT_DIR/files/pictures/$rel"
+
+    if [[ ! -d "$src" ]]; then
+      log "skip missing ~/Pictures/$rel"
+      continue
+    fi
+
+    run_cmd mkdir -p -- "$(dirname -- "$dst")"
+    run_cmd rm -rf -- "$dst"
+    run_cmd cp -a -- "$src" "$dst"
+  done
+}
+
 remove_forbidden() {
   local forbidden=(
     "$ROOT_DIR/files/config/fish/secrets.fish"
@@ -151,6 +168,7 @@ main() {
   done <"$CONFIG_MANIFEST"
 
   copy_scripts
+  copy_pictures
   remove_forbidden
 
   if [[ "$DRY_RUN" -ne 1 ]]; then
