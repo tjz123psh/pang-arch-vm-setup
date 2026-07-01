@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # OCR 优化包装脚本
-# - 数据源：tessdata_best（纯 LSTM 浮点模型）
+# - 数据源：个人 tessdata 优先，系统 tessdata 回退
 # - 引擎：--oem 1（跳过 legacy 引擎）
 # - 分段：--psm 6（均匀文本块，适合截图）
 # - PDF 混合模式：文字页 pdftotext（快），空白/图片页 OCR 兜底
@@ -20,7 +20,11 @@
 set -uo pipefail
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-TESSDATA="$HOME/.local/share/tessdata"
+if [[ -d "$HOME/.local/share/tessdata" ]]; then
+  TESSDATA="$HOME/.local/share/tessdata"
+else
+  TESSDATA="/usr/share/tessdata"
+fi
 LANG="chi_sim+eng"
 PSM=6
 DPI=300

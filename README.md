@@ -12,6 +12,7 @@
 - 终端：kitty + fish + starship
 - 编辑器：Neovim + Neovide
 - 文件与媒体：Nautilus、Loupe、mpv、yazi
+- OCR/PDF：tesseract、中文/英文识别数据、poppler
 - 常用工具：git、paru、fzf、ripgrep、fd、eza、jq、glow
 - 个人配置：nvim、fish、kitty、niri、DMS、opencode、脚本、壁纸、头像
 

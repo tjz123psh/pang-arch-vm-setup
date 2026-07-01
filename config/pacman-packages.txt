@@ -51,9 +51,16 @@ yazi
 xdg-utils
 mpv
 yt-dlp
+poppler
+poppler-glib
 wl-clipboard
 xclip
 fastfetch
+tesseract
+tesseract-data-chi_sim
+tesseract-data-chi_sim_vert
+tesseract-data-eng
+tesseract-data-osd
 
 nodejs
 npm
