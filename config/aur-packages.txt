@@ -2,7 +2,7 @@
 # DMS itself is installed by modules/20-dms.sh.
 
 opencode-bin
-flclash-bin
+flclash-appimage-bin
 dsearch-bin
 leaf-markdown-viewer-bin
 rime-ice-git
