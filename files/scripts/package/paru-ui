@@ -438,15 +438,19 @@ index_cache_is_valid() {
 }
 
 build_package_index_uncached() {
-  awk '
-    NR == FNR {
-      installed[$1] = 1
+  {
+    pacman -Qq | awk '{ print "installed\t" $0 }'
+    pacman -Sl | awk '{ print "repo\t" $1 "\t" $2 }'
+    aur_package_list | awk '{ print "aur\t" $0 }'
+  } | awk -F '\t' '
+    $1 == "installed" {
+      installed[$2] = 1
       next
     }
 
-    ARGIND == 2 {
-      source = $1
-      pkg = $2
+    $1 == "repo" {
+      source = $2
+      pkg = $3
       if (pkg == "" || source == "") {
         next
       }
@@ -457,8 +461,8 @@ build_package_index_uncached() {
       next
     }
 
-    ARGIND == 3 {
-      pkg = $1
+    $1 == "aur" {
+      pkg = $2
       if (pkg == "") {
         next
       }
@@ -466,7 +470,7 @@ build_package_index_uncached() {
       state = installed[pkg] ? "[installed]" : ""
       printf "%-34s\t%-12s\t%-12s\t%s\n", "aur/" pkg, "AUR", state, "package index"
     }
-  ' <(pacman -Qq) <(pacman -Sl) <(aur_package_list)
+  '
 }
 
 build_package_index() {
