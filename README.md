@@ -20,22 +20,18 @@
 
 ## 使用方法
 
-先安装基础工具：
+一条命令安装：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
+```
+
+如果想先手动克隆，也可以：
 
 ```bash
 sudo pacman -S --needed git curl
-```
-
-克隆仓库：
-
-```bash
 git clone https://github.com/tjz123psh/pang-arch-vm-setup.git
 cd pang-arch-vm-setup
-```
-
-开始安装：
-
-```bash
 ./install.sh
 ```
 
@@ -58,10 +54,7 @@ cd pang-arch-vm-setup
 刚装好的 Arch 虚拟机里，推荐直接执行：
 
 ```bash
-sudo pacman -S --needed git curl
-git clone https://github.com/tjz123psh/pang-arch-vm-setup.git
-cd pang-arch-vm-setup
-./install.sh -y
+curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
 ```
 
 ## 注意

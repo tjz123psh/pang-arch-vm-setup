@@ -6,7 +6,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 mapfile -d '' shell_files < <(
-  find install.sh modules tools files/config/opencode/skills/tool/ocr/scripts \
+  find bootstrap.sh install.sh modules tools files/config/opencode/skills/tool/ocr/scripts \
     -type f \( -name '*.sh' -o -path 'install.sh' \) -print0 | sort -z
 )
 
