@@ -22,6 +22,9 @@ xwayland-satellite
 xdg-desktop-portal-gnome
 xdg-desktop-portal-gtk
 polkit-gnome
+sddm
+qt6-declarative
+qt6-svg
 nautilus
 loupe
 xdg-user-dirs

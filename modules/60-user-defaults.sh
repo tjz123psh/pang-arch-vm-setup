@@ -38,8 +38,24 @@ if command -v xdg-user-dirs-update >/dev/null 2>&1; then
 fi
 
 rime_user_yaml="$HOME/.local/share/fcitx5/rime/user.yaml"
+rime_config_src="$ROOT_DIR/files/config/fcitx5/rime"
+rime_data_dst="$HOME/.local/share/fcitx5/rime"
+if [[ -d "$rime_config_src" ]]; then
+  sync_dir_contents "$rime_config_src" "$rime_data_dst"
+fi
+
 if [[ -f "$rime_user_yaml" ]]; then
   run_cmd sed -i '/previously_selected_schema:/d' "$rime_user_yaml"
+fi
+
+stale_luna_custom="$HOME/.config/fcitx5/rime/luna_pinyin.custom.yaml"
+if [[ -f "$stale_luna_custom" ]]; then
+  run_cmd rm -f "$stale_luna_custom"
+fi
+
+stale_luna_data_custom="$HOME/.local/share/fcitx5/rime/luna_pinyin.custom.yaml"
+if [[ -f "$stale_luna_data_custom" ]]; then
+  run_cmd rm -f "$stale_luna_data_custom"
 fi
 
 rustup_fish="$HOME/.config/fish/conf.d/rustup.fish"

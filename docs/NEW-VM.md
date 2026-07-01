@@ -66,6 +66,9 @@ With optional daily apps:
 ./install.sh --with-apps
 ```
 
+The optional app set currently includes Google Chrome, QQ, WeChat, and
+Obsidian. Neovide is part of the default VM profile.
+
 The DMS step runs the upstream installer only when `dms` is not already
 installed:
 

@@ -9,7 +9,8 @@ This project is intentionally conservative: it assumes Arch Linux is already ins
 Included:
 
 - VM-friendly desktop stack: niri, DMS, kitty, fish, starship.
-- Input method: fcitx5 + rime.
+- Login/theme stack: SDDM with the Pixie theme, GTK/Qt settings, curated wallpapers.
+- Input method: fcitx5 + Rime Ice.
 - Editor and tools: Neovim, Neovide, yazi, mpv, git, rg/fd/fzf/eza/jq.
 - File basics: Nautilus, Loupe, XDG MIME defaults.
 - Personal scripts and selected config files.

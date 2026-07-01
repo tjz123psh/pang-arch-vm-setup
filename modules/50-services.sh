@@ -22,10 +22,22 @@ for unit in "${system_units[@]}"; do
   fi
 done
 
+if systemctl list-unit-files sddm.service >/dev/null 2>&1; then
+  for dm_unit in gdm.service lightdm.service ly.service greetd.service; do
+    if systemctl list-unit-files "$dm_unit" >/dev/null 2>&1; then
+      run_cmd sudo systemctl disable --now "$dm_unit"
+    fi
+  done
+  run_cmd sudo systemctl enable --now sddm.service
+else
+  warn "System unit not found: sddm.service"
+fi
+
 # DMS owns notifications in this profile. Do not install mako; only disable
-# stale mako units when they already exist on the target system.
+# and mask stale mako units when they already exist on the target system.
 if systemctl --user list-unit-files mako.service >/dev/null 2>&1; then
   run_cmd systemctl --user disable mako.service
+  run_cmd systemctl --user mask mako.service
   if [[ "$DRY_RUN" -eq 1 ]]; then
     run_cmd systemctl --user stop mako.service
   elif systemctl --user is-active --quiet mako.service; then
