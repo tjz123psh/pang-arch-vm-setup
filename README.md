@@ -10,7 +10,8 @@ Included:
 
 - VM-friendly desktop stack: niri, DMS, kitty, mako, fish, starship.
 - Input method: fcitx5 + rime.
-- Editor and tools: Neovim, yazi, mpv, git, rg/fd/fzf/eza/jq.
+- Editor and tools: Neovim, Neovide, yazi, mpv, git, rg/fd/fzf/eza/jq.
+- File basics: Nautilus, Loupe, XDG MIME defaults.
 - Personal scripts and selected config files.
 
 Excluded:
@@ -19,6 +20,7 @@ Excluded:
 - Browser/app caches and private app state.
 - Secrets, API keys, tokens, browser profiles, sync databases.
 - Disk partitioning and Btrfs layout creation.
+- Daily binary apps unless `--with-apps` is used.
 
 ## Usage
 
@@ -41,6 +43,12 @@ Run:
 
 ```bash
 ./install.sh
+```
+
+Run with optional daily apps:
+
+```bash
+./install.sh --with-apps
 ```
 
 Run without DMS:
@@ -66,6 +74,7 @@ The installer is split into modules under `modules/`:
 ## Safety
 
 - `--dry-run` prints actions without changing the system.
+- `--with-apps` installs optional AUR apps such as Chrome, QQ, WeChat, and Obsidian.
 - Existing config paths are backed up before overwrite.
 - Secrets are excluded by `.gitignore`.
 - `tools/sync-from-current-system.sh` only copies paths listed in `config/dotfiles-manifest.txt`.

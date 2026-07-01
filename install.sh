@@ -6,6 +6,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DRY_RUN=0
 YES=0
 SKIP_DMS=0
+WITH_APPS=0
 PROFILE="vm"
 
 usage() {
@@ -16,6 +17,7 @@ Options:
   --dry-run      Print actions without changing the system
   -y, --yes      Do not ask for final confirmation
   --skip-dms     Skip DankMaterialShell installer
+  --with-apps    Install optional daily desktop apps
   --profile VM   Profile name, default: vm
   -h, --help     Show help
 EOF
@@ -31,6 +33,9 @@ while (($#)); do
       ;;
     --skip-dms)
       SKIP_DMS=1
+      ;;
+    --with-apps)
+      WITH_APPS=1
       ;;
     --profile)
       shift
@@ -49,24 +54,26 @@ while (($#)); do
   shift
 done
 
-export ROOT_DIR DRY_RUN YES SKIP_DMS PROFILE
+export ROOT_DIR DRY_RUN YES SKIP_DMS WITH_APPS PROFILE
 
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/common.sh"
 
 main() {
-  log "Starting pang-arch-vm-setup profile=$PROFILE dry_run=$DRY_RUN skip_dms=$SKIP_DMS"
+  log "Starting pang-arch-vm-setup profile=$PROFILE dry_run=$DRY_RUN skip_dms=$SKIP_DMS with_apps=$WITH_APPS"
 
   if [[ "$YES" -ne 1 && "$DRY_RUN" -ne 1 ]]; then
     confirm "This will install packages and copy selected dotfiles. Continue?"
   fi
 
   run_module "00-preflight.sh"
+  run_module "05-locale.sh"
   run_module "10-packages.sh"
   run_module "20-dms.sh"
   run_module "30-dotfiles.sh"
   run_module "40-scripts.sh"
   run_module "50-services.sh"
+  run_module "60-user-defaults.sh"
   run_module "90-validate.sh"
 
   log "Done"

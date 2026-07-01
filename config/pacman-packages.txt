@@ -23,6 +23,8 @@ xwayland-satellite
 xdg-desktop-portal-gnome
 xdg-desktop-portal-gtk
 polkit-gnome
+nautilus
+loupe
 
 fcitx5
 fcitx5-configtool
@@ -31,6 +33,8 @@ fcitx5-qt
 fcitx5-rime
 
 neovim
+neovide
+tree-sitter-cli
 fd
 fzf
 ripgrep
@@ -39,6 +43,7 @@ jq
 unzip
 glow
 yazi
+xdg-utils
 mpv
 yt-dlp
 wl-clipboard

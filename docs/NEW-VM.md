@@ -60,6 +60,12 @@ With DMS:
 ./install.sh
 ```
 
+With optional daily apps:
+
+```bash
+./install.sh --with-apps
+```
+
 The DMS step runs the upstream installer:
 
 ```bash
@@ -67,6 +73,10 @@ curl -fsSL https://install.danklinux.com | sh
 ```
 
 Use `--skip-dms` while testing base package and dotfile installation.
+
+The optional app set is kept out of the default VM profile because it installs
+large binary/repackaged AUR applications. It currently includes Chrome, QQ,
+WeChat, and Obsidian. Review the AUR prompts before accepting them.
 
 ## 5. Private Files
 
@@ -140,3 +150,6 @@ find files -path '*/.git' -type d -print
 - `fish/secrets.fish` is private and must be created manually.
 - Browser profiles, proxy profiles, sync databases, and app caches are not part of this repo.
 - Physical hardware setup is not part of this repo.
+- DMS does not currently provide Chinese UI strings; this is an upstream limitation.
+- WeChat file paste from Nautilus may paste a path instead of the file when using the bwrap build under Wayland. Use WeChat's file picker for file transfer.
+- `paru-ui` local completion is based on the local paru cache, not the full AUR package database.

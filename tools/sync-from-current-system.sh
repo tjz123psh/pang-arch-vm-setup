@@ -82,6 +82,7 @@ copy_scripts() {
 remove_forbidden() {
   local forbidden=(
     "$ROOT_DIR/files/config/fish/secrets.fish"
+    "$ROOT_DIR/files/config/fish/conf.d/rustup.fish"
     "$ROOT_DIR/files/config/opencode/opencode.json"
     "$ROOT_DIR/files/config/flclash"
     "$ROOT_DIR/files/config/google-chrome"
