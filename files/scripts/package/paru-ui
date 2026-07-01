@@ -5,7 +5,9 @@ SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0
 readonly SELF
 readonly CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/paru-ui"
 readonly INDEX_CACHE="$CACHE_ROOT/package-index.tsv"
+readonly AUR_PACKAGE_LIST_CACHE="$CACHE_ROOT/aur-packages.txt"
 readonly INDEX_MAX_AGE="${PARU_UI_INDEX_MAX_AGE:-3600}"
+readonly AUR_INDEX_MAX_AGE="${PARU_UI_AUR_INDEX_MAX_AGE:-86400}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SELF")" && pwd -P)"
 readonly SCRIPT_DIR
 readonly MODEL_CACHE="$CACHE_ROOT/opencode_model"
@@ -33,7 +35,7 @@ do
   fi
 done
 
-deps=(fzf paru pacman awk sed mktemp)
+deps=(fzf paru pacman awk sed mktemp curl gzip)
 missing=()
 for cmd in "${deps[@]}"; do
   command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
@@ -126,6 +128,7 @@ clear_preview_cache() {
   dir="$(cache_dir)"
 
   rm -f -- "$INDEX_CACHE"
+  rm -f -- "$AUR_PACKAGE_LIST_CACHE"
   rm -rf -- "$CACHE_ROOT/review"
 
   if [[ ! -d "$dir" ]]; then
@@ -138,6 +141,34 @@ clear_preview_cache() {
   done
   shopt -u nullglob dotglob
 
+}
+
+aur_package_list() {
+  local tmp_file
+
+  mkdir -p -- "$CACHE_ROOT"
+
+  if cache_is_fresh "$AUR_PACKAGE_LIST_CACHE" "$AUR_INDEX_MAX_AGE"; then
+    cat -- "$AUR_PACKAGE_LIST_CACHE"
+    return 0
+  fi
+
+  tmp_file="$(mktemp "$CACHE_ROOT/aur-packages.XXXXXX")"
+  if curl -fsSL https://aur.archlinux.org/packages.gz | gzip -dc >"$tmp_file"; then
+    mv -- "$tmp_file" "$AUR_PACKAGE_LIST_CACHE"
+    cat -- "$AUR_PACKAGE_LIST_CACHE"
+    return 0
+  fi
+
+  rm -f -- "$tmp_file"
+  if [[ -s "$AUR_PACKAGE_LIST_CACHE" ]]; then
+    printf 'paru-ui: AUR package index refresh failed; using stale cache\n' >&2
+    cat -- "$AUR_PACKAGE_LIST_CACHE"
+    return 0
+  fi
+
+  printf 'paru-ui: AUR package index refresh failed; falling back to paru completion cache\n' >&2
+  paru -P --complete | awk '$2 == "AUR" { print $1 }'
 }
 
 strip_ansi_file() {
@@ -413,23 +444,29 @@ build_package_index_uncached() {
       next
     }
 
-    {
-      pkg = $1
-      source = $2
+    ARGIND == 2 {
+      source = $1
+      pkg = $2
       if (pkg == "" || source == "") {
         next
       }
 
-      display_source = source
       ref = source "/" pkg
-      if (source == "AUR") {
-        ref = "aur/" pkg
+      state = installed[pkg] ? "[installed]" : ""
+      printf "%-34s\t%-12s\t%-12s\t%s\n", ref, source, state, "package index"
+      next
+    }
+
+    ARGIND == 3 {
+      pkg = $1
+      if (pkg == "") {
+        next
       }
 
       state = installed[pkg] ? "[installed]" : ""
-      printf "%-34s\t%-12s\t%-12s\t%s\n", ref, display_source, state, "package index"
+      printf "%-34s\t%-12s\t%-12s\t%s\n", "aur/" pkg, "AUR", state, "package index"
     }
-  ' <(pacman -Qq) <(paru -P --complete)
+  ' <(pacman -Qq) <(pacman -Sl) <(aur_package_list)
 }
 
 build_package_index() {

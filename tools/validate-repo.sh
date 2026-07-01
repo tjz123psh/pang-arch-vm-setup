@@ -7,6 +7,8 @@ cd "$ROOT_DIR"
 
 find . -type f \( -name '*.sh' -o -path './install.sh' \) -print | sort | xargs -r bash -n
 find . -type f \( -name '*.sh' -o -path './install.sh' \) -print | sort | xargs -r shellcheck -x
+bash -n files/scripts/package/paru-ui
+shellcheck -x files/scripts/package/paru-ui
 
 ./install.sh --dry-run --skip-dms -y >/dev/null
 ./install.sh --dry-run --skip-dms --with-apps -y >/dev/null

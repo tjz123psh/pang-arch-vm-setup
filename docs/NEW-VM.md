@@ -152,4 +152,4 @@ find files -path '*/.git' -type d -print
 - Physical hardware setup is not part of this repo.
 - DMS does not currently provide Chinese UI strings; this is an upstream limitation.
 - WeChat file paste from Nautilus may paste a path instead of the file when using the bwrap build under Wayland. Use WeChat's file picker for file transfer.
-- `paru-ui` local completion is based on the local paru cache, not the full AUR package database.
+- `paru-ui` downloads the AUR package-name index from `https://aur.archlinux.org/packages.gz`. The first full index build needs network access; if refresh fails it falls back to cached data.
