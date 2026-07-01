@@ -1,3 +1,2 @@
-# Optional official repository packages for daily desktop app usage.
-# Installed only with ./install.sh --with-apps.
-
+# Daily app packages from official repositories.
+# Installed by ./install.sh.

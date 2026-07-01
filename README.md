@@ -44,11 +44,7 @@ cd pang-arch-vm-setup
 ./install.sh -y
 ```
 
-如果还想安装 QQ、微信、Chrome、Obsidian 这些日常软件：
-
-```bash
-./install.sh --with-apps
-```
+脚本会直接安装完整环境，包括 QQ、微信、Chrome、Obsidian 等日常软件。
 
 如果不想安装 DMS：
 
@@ -65,12 +61,6 @@ sudo pacman -S --needed git curl
 git clone https://github.com/tjz123psh/pang-arch-vm-setup.git
 cd pang-arch-vm-setup
 ./install.sh -y
-```
-
-需要完整日常软件时：
-
-```bash
-./install.sh --with-apps -y
 ```
 
 ## 注意

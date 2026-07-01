@@ -60,14 +60,14 @@ With DMS:
 ./install.sh
 ```
 
-With optional daily apps:
+Run the installer:
 
 ```bash
-./install.sh --with-apps
+./install.sh
 ```
 
-The optional app set currently includes Google Chrome, QQ, WeChat, and
-Obsidian. Neovide is part of the default VM profile.
+The installed app set includes Google Chrome, QQ, WeChat, Obsidian, and
+Neovide.
 
 The DMS step runs the upstream installer only when `dms` is not already
 installed:
@@ -78,11 +78,8 @@ curl -fsSL https://install.danklinux.com | sh
 
 Use `--skip-dms` while testing base package and dotfile installation.
 
-The optional app set is kept out of the default VM profile because it installs
-large binary/repackaged AUR applications. It currently includes Chrome, QQ,
-WeChat, and Obsidian. The installer passes `--skipreview` to `paru`; use
-`paru-ui` when you want the separate AI PKGBUILD review workflow before a
-manual app install.
+The installer passes `--skipreview` to `paru`; use `paru-ui` when you want the
+separate AI PKGBUILD review workflow before a manual app install.
 
 ## 5. Private Files
 

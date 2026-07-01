@@ -11,7 +11,6 @@ bash -n files/scripts/package/paru-ui
 shellcheck -x files/scripts/package/paru-ui
 
 ./install.sh --dry-run --skip-dms -y >/dev/null
-./install.sh --dry-run --skip-dms --with-apps -y >/dev/null
 
 if [[ -e files/config/opencode/opencode.json ]]; then
   echo "Forbidden file present: files/config/opencode/opencode.json" >&2

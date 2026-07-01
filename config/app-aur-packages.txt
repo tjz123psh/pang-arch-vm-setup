@@ -1,5 +1,5 @@
-# Optional AUR packages for daily desktop app usage.
-# Installed only with ./install.sh --with-apps.
+# Daily app packages from AUR.
+# Installed by ./install.sh.
 # These are binary/repackaged apps, so review PKGBUILDs before installing.
 
 google-chrome

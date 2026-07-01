@@ -51,10 +51,8 @@ ensure_paru() {
 }
 
 mapfile -t pacman_packages < <(read_package_list "$pacman_list")
-if [[ "$WITH_APPS" -eq 1 ]]; then
-  mapfile -t app_pacman_packages < <(read_package_list "$app_pacman_list")
-  pacman_packages+=("${app_pacman_packages[@]}")
-fi
+mapfile -t app_pacman_packages < <(read_package_list "$app_pacman_list")
+pacman_packages+=("${app_pacman_packages[@]}")
 if ((${#pacman_packages[@]})); then
   run_cmd sudo pacman -S --needed --noconfirm "${pacman_packages[@]}"
 fi
@@ -62,10 +60,8 @@ fi
 ensure_paru
 
 mapfile -t aur_packages < <(read_package_list "$aur_list")
-if [[ "$WITH_APPS" -eq 1 ]]; then
-  mapfile -t app_aur_packages < <(read_package_list "$app_aur_list")
-  aur_packages+=("${app_aur_packages[@]}")
-fi
+mapfile -t app_aur_packages < <(read_package_list "$app_aur_list")
+aur_packages+=("${app_aur_packages[@]}")
 filter_aur_packages aur_packages
 if ((${#aur_packages[@]})); then
   run_cmd paru -S --needed --noconfirm --skipreview "${aur_packages[@]}"
