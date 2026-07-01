@@ -8,7 +8,7 @@ This project is intentionally conservative: it assumes Arch Linux is already ins
 
 Included:
 
-- VM-friendly desktop stack: niri, DMS, kitty, mako, fish, starship.
+- VM-friendly desktop stack: niri, DMS, kitty, fish, starship.
 - Input method: fcitx5 + rime.
 - Editor and tools: Neovim, Neovide, yazi, mpv, git, rg/fd/fzf/eza/jq.
 - File basics: Nautilus, Loupe, XDG MIME defaults.

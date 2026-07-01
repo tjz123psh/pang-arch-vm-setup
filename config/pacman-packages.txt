@@ -17,7 +17,6 @@ fish
 starship
 kitty
 niri
-mako
 fuzzel
 xwayland-satellite
 xdg-desktop-portal-gnome
@@ -25,6 +24,9 @@ xdg-desktop-portal-gtk
 polkit-gnome
 nautilus
 loupe
+xdg-user-dirs
+open-vm-tools
+gtkmm3
 
 fcitx5
 fcitx5-configtool
@@ -54,6 +56,7 @@ nodejs
 npm
 go
 python
+python-pip
 jdk-openjdk
 clang
 shellcheck

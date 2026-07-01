@@ -133,7 +133,6 @@ run_pack() {
   add_path ".local/share/fcitx5/rime"
   add_path ".config/paru"
   add_path ".config/mpv"
-  add_path ".config/mako/config"
   add_path ".config/gtk-3.0/dank-colors.css"
   add_path ".config/gtk-4.0/dank-colors.css"
   add_path ".config/gtk-4.0/gtk.css"

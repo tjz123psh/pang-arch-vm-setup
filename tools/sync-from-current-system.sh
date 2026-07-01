@@ -85,6 +85,8 @@ remove_forbidden() {
     "$ROOT_DIR/files/config/fish/conf.d/rustup.fish"
     "$ROOT_DIR/files/config/opencode/opencode.json"
     "$ROOT_DIR/files/config/flclash"
+    "$ROOT_DIR/files/config/mako"
+    "$ROOT_DIR/files/config/nvim/lua/plugins/dankcolors.lua"
     "$ROOT_DIR/files/config/google-chrome"
     "$ROOT_DIR/files/config/mozilla"
     "$ROOT_DIR/files/config/obsidian"

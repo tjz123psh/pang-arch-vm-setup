@@ -2,20 +2,15 @@
 
 system_units=(
   NetworkManager.service
+  vmtoolsd.service
+  vmware-vmblock-fuse.service
 )
 
 user_units=(
   dsearch.service
 )
 
-if [[ "$SKIP_DMS" -eq 1 ]]; then
-  if systemctl --user is-active --quiet dms.service 2>/dev/null \
-    || systemctl --user is-enabled --quiet dms.service 2>/dev/null; then
-    warn "Skipping mako.service because dms.service is active or enabled"
-  else
-    user_units+=(mako.service)
-  fi
-else
+if [[ "$SKIP_DMS" -ne 1 ]]; then
   user_units+=(dms.service)
 fi
 
@@ -27,7 +22,7 @@ for unit in "${system_units[@]}"; do
   fi
 done
 
-if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files mako.service >/dev/null 2>&1; then
+if systemctl --user list-unit-files mako.service >/dev/null 2>&1; then
   run_cmd systemctl --user disable --now mako.service
 fi
 

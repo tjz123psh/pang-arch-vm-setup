@@ -17,9 +17,29 @@ if command -v xdg-mime >/dev/null 2>&1; then
   fi
 fi
 
+user_dirs=(
+  Desktop
+  Downloads
+  Templates
+  Public
+  Documents
+  Music
+  Pictures
+  Videos
+  Projects
+)
+
+for user_dir in "${user_dirs[@]}"; do
+  run_cmd mkdir -p -- "$HOME/$user_dir"
+done
+
+if command -v xdg-user-dirs-update >/dev/null 2>&1; then
+  run_cmd xdg-user-dirs-update
+fi
+
 rime_user_yaml="$HOME/.local/share/fcitx5/rime/user.yaml"
 if [[ -f "$rime_user_yaml" ]]; then
-  run_cmd sed -i '/^[[:space:]]*previously_selected_schema:/d' "$rime_user_yaml"
+  run_cmd sed -i '/previously_selected_schema:/d' "$rime_user_yaml"
 fi
 
 rustup_fish="$HOME/.config/fish/conf.d/rustup.fish"
@@ -27,6 +47,11 @@ rustup_source_line="source \"\$HOME/.cargo/env.fish\""
 if [[ ! -e "$HOME/.cargo/env.fish" && -f "$rustup_fish" ]] \
   && grep -Fxq "$rustup_source_line" "$rustup_fish"; then
   run_cmd rm -f "$rustup_fish"
+fi
+
+bad_nvim_color_plugin="$HOME/.config/nvim/lua/plugins/dankcolors.lua"
+if [[ -f "$bad_nvim_color_plugin" ]]; then
+  run_cmd rm -f "$bad_nvim_color_plugin"
 fi
 
 if command -v fish >/dev/null 2>&1; then

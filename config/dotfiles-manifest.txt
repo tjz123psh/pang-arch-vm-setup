@@ -10,7 +10,6 @@ fish/fish_variables
 kitty
 niri
 mpv
-mako
 fcitx5
 environment.d
 danksearch

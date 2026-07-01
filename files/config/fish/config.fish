@@ -4,7 +4,7 @@ if test -f "$HOME/.config/fish/secrets.fish"
 end
 
 # 用户自定义脚本路径
-fish_add_path -g ~/scripts/maintenance
+fish_add_path -g ~/.local/bin ~/scripts/package ~/scripts/maintenance ~/scripts/desktop ~/scripts/media
 
 if status is-interactive
 # Commands to run in interactive sessions can go here
@@ -16,4 +16,3 @@ function lt
     command eza --icons --tree $argv
 end
 end
-

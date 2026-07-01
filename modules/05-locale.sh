@@ -27,3 +27,10 @@ if [[ "$changed" -eq 1 ]] || ! locale -a | grep -Fqx "zh_CN.utf8"; then
 else
   log "Locales already generated"
 fi
+
+if command -v localectl >/dev/null 2>&1; then
+  current_lang="$(localectl status 2>/dev/null | sed -nE 's/^[[:space:]]*System Locale:[[:space:]]*LANG=([^[:space:]]+).*/\1/p')"
+  if [[ "$current_lang" != "zh_CN.UTF-8" ]]; then
+    run_cmd sudo localectl set-locale LANG=zh_CN.UTF-8
+  fi
+fi
