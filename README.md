@@ -1,90 +1,82 @@
 # pang-arch-vm-setup
 
-Arch Linux VM post-install bootstrap for Pang's current desktop workflow.
+这是我给 Arch Linux 虚拟机准备的一键桌面环境部署脚本。
 
-This project is intentionally conservative: it assumes Arch Linux is already installed and bootable, then installs common desktop/system tools, copies a curated dotfile subset, installs personal scripts, optionally runs the DMS installer, enables user services, and validates the result.
+它适合在“已经安装好并能进入系统的 Arch Linux”里运行，用来快速装好常用软件、桌面环境、输入法、终端、Neovim、个人脚本和常用配置。
 
-## Scope
+## 主要内容
 
-Included:
+- 桌面环境：niri + DankMaterialShell
+- 登录界面：SDDM + Pixie 主题
+- 输入法：fcitx5 + 雾凇拼音
+- 终端：kitty + fish + starship
+- 编辑器：Neovim + Neovide
+- 文件与媒体：Nautilus、Loupe、mpv、yazi
+- 常用工具：git、paru、fzf、ripgrep、fd、eza、jq、glow
+- 个人配置：nvim、fish、kitty、niri、DMS、opencode、脚本、壁纸、头像
 
-- VM-friendly desktop stack: niri, DMS, kitty, fish, starship.
-- Login/theme stack: SDDM with the Pixie theme, GTK/Qt settings, curated wallpapers.
-- Input method: fcitx5 + Rime Ice.
-- Editor and tools: Neovim, Neovide, yazi, mpv, git, rg/fd/fzf/eza/jq.
-- File basics: Nautilus, Loupe, XDG MIME defaults.
-- Personal scripts and selected config files.
+这个仓库不负责 Arch 的分区、格式化、引导器安装，也不包含物理机专用驱动、电池优化、显卡特殊配置。
 
-Excluded:
+## 使用方法
 
-- Physical machine drivers, GPU-specific setup, battery/power tuning.
-- Browser/app caches and private app state.
-- Secrets, API keys, tokens, browser profiles, sync databases.
-- Disk partitioning and Btrfs layout creation.
-- Daily binary apps unless `--with-apps` is used.
-
-## Usage
-
-For a fresh VM, follow [docs/NEW-VM.md](docs/NEW-VM.md).
-
-First sync the curated files from the current system:
+先安装基础工具：
 
 ```bash
-tools/sync-from-current-system.sh --dry-run
-tools/sync-from-current-system.sh
+sudo pacman -S --needed git curl
 ```
 
-Dry-run first:
+克隆仓库：
 
 ```bash
-./install.sh --dry-run
+git clone https://github.com/tjz123psh/pang-arch-vm-setup.git
+cd pang-arch-vm-setup
 ```
 
-Run:
+开始安装：
 
 ```bash
 ./install.sh
 ```
 
-Run with optional daily apps:
+如果想自动确认：
+
+```bash
+./install.sh -y
+```
+
+如果还想安装 QQ、微信、Chrome、Obsidian 这些日常软件：
 
 ```bash
 ./install.sh --with-apps
 ```
 
-Run without DMS:
+如果不想安装 DMS：
 
 ```bash
 ./install.sh --skip-dms
 ```
 
-## Design
+## 推荐流程
 
-The installer is split into modules under `modules/`:
-
-| Module | Purpose |
-| --- | --- |
-| `00-preflight.sh` | Check OS, network, sudo, and required commands |
-| `10-packages.sh` | Install official repo and AUR package lists |
-| `20-dms.sh` | Optionally run the upstream DMS installer |
-| `30-dotfiles.sh` | Copy curated files from `files/config/` into `~/.config/` |
-| `40-scripts.sh` | Install personal scripts and symlink command entries |
-| `50-services.sh` | Enable common user services when present |
-| `90-validate.sh` | Run smoke checks |
-
-## Safety
-
-- `--dry-run` prints actions without changing the system.
-- `--with-apps` installs optional AUR apps such as Chrome, QQ, WeChat, and Obsidian.
-- Existing config paths are backed up before overwrite.
-- Secrets are excluded by `.gitignore`.
-- `tools/sync-from-current-system.sh` only copies paths listed in `config/dotfiles-manifest.txt`.
-- Destructive cleanup is not part of this installer.
-
-## Validation
-
-Run before committing:
+刚装好的 Arch 虚拟机里，推荐直接执行：
 
 ```bash
-tools/validate-repo.sh
+sudo pacman -S --needed git curl
+git clone https://github.com/tjz123psh/pang-arch-vm-setup.git
+cd pang-arch-vm-setup
+./install.sh -y
 ```
+
+需要完整日常软件时：
+
+```bash
+./install.sh --with-apps -y
+```
+
+## 注意
+
+- 脚本会安装系统软件和 AUR 软件。
+- 脚本会复制仓库里的配置到当前用户目录。
+- 已存在的配置文件会先备份再覆盖。
+- 私密数据、浏览器登录状态、聊天记录、API key 不会放进仓库。
+- 这个项目主要面向虚拟机，不按物理机驱动方案设计。
