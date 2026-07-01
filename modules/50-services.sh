@@ -9,7 +9,12 @@ user_units=(
 )
 
 if [[ "$SKIP_DMS" -eq 1 ]]; then
-  user_units+=(mako.service)
+  if systemctl --user is-active --quiet dms.service 2>/dev/null \
+    || systemctl --user is-enabled --quiet dms.service 2>/dev/null; then
+    warn "Skipping mako.service because dms.service is active or enabled"
+  else
+    user_units+=(mako.service)
+  fi
 else
   user_units+=(dms.service)
 fi

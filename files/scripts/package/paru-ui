@@ -15,12 +15,19 @@ readonly DEFAULT_OPENCODE_MODEL="opencode/deepseek-v4-flash-free"
 
 REVIEW_ONLY=false
 OPENCODE_MODEL="${PARU_UI_OPENCODE_MODEL:-${PAC_OPENCODE_MODEL:-$DEFAULT_OPENCODE_MODEL}}"
+SESSION_CACHE_TO_CLEAN=""
 if [[ -r "$MODEL_CACHE" ]]; then
   read -r cached_model <"$MODEL_CACHE" || true
   if [[ -n "${cached_model:-}" && -z "${PARU_UI_OPENCODE_MODEL:-}${PAC_OPENCODE_MODEL:-}" ]]; then
     OPENCODE_MODEL="$cached_model"
   fi
 fi
+
+cleanup_session_cache() {
+  if [[ -n "${SESSION_CACHE_TO_CLEAN:-}" ]]; then
+    rm -rf -- "$SESSION_CACHE_TO_CLEAN"
+  fi
+}
 
 AUR_REVIEW_PROMPT=""
 for candidate in \
@@ -604,8 +611,9 @@ launch_ui() {
   preview_cmd="$SELF --preview {1}"
   mkdir -p -- "$CACHE_ROOT"
   session_cache="$(mktemp -d "$CACHE_ROOT/session.XXXXXX")"
+  SESSION_CACHE_TO_CLEAN="$session_cache"
   export PARU_UI_SESSION_CACHE_DIR="$session_cache"
-  trap 'rm -rf -- "$session_cache"' EXIT
+  trap cleanup_session_cache EXIT
 
   result="$(
     "$SELF" --index |
