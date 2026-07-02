@@ -31,3 +31,15 @@ fi
 if [[ -d "$HOME/scripts" ]]; then
   run_shell "find '$HOME/scripts' -type f -perm -111 -print | sort | xargs -r bash -n"
 fi
+
+if [[ "$DRY_RUN" -ne 1 ]]; then
+  rime_default="$HOME/.local/share/fcitx5/rime/build/default.yaml"
+  if [[ -f "$rime_default" ]]; then
+    mapfile -t rime_schemas < <(awk '$1 == "-" && $2 == "schema:" { print $3 }' "$rime_default")
+    if [[ "${#rime_schemas[@]}" -ne 1 || "${rime_schemas[0]:-}" != "rime_ice" ]]; then
+      die "Rime schema_list must be exactly rime_ice, got: ${rime_schemas[*]:-none}"
+    fi
+  else
+    die "Rime build file missing: $rime_default"
+  fi
+fi

@@ -64,3 +64,4 @@ curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/b
 - 已存在的配置文件会先备份再覆盖。
 - 私密数据、浏览器登录状态、聊天记录、API key 不会放进仓库。
 - 这个项目主要面向虚拟机，不按物理机驱动方案设计。
+- Rime 的系统默认数据里可能带有明月拼音，但本仓库部署后只启用雾凇拼音 `rime_ice`。

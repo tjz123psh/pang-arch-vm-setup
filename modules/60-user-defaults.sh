@@ -59,6 +59,7 @@ fi
 if command -v rime_deployer >/dev/null 2>&1; then
   # shellcheck disable=SC2016
   run_shell 'cd "$HOME/.local/share/fcitx5/rime" && rime_deployer --set-active-schema rime_ice'
+  run_cmd rm -rf -- "$rime_data_dst/build"
   run_cmd mkdir -p -- "$rime_data_dst/build"
   run_cmd rime_deployer --build "$rime_data_dst" /usr/share/rime-data "$rime_data_dst/build"
 elif [[ ! -f "$rime_user_yaml" ]]; then

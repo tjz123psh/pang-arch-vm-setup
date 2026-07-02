@@ -51,4 +51,18 @@ if grep -RInE '(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-
   exit 1
 fi
 
+if command -v rime_deployer >/dev/null 2>&1 && [[ -d /usr/share/rime-data ]]; then
+  rime_tmp="$(mktemp -d)"
+  trap 'rm -rf "$rime_tmp"' EXIT
+  mkdir -p "$rime_tmp/build"
+  cp files/config/fcitx5/rime/*.yaml "$rime_tmp/"
+  (cd "$rime_tmp" && rime_deployer --set-active-schema rime_ice >/dev/null)
+  rime_deployer --build "$rime_tmp" /usr/share/rime-data "$rime_tmp/build" >/dev/null
+  mapfile -t rime_schemas < <(awk '$1 == "-" && $2 == "schema:" { print $3 }' "$rime_tmp/build/default.yaml")
+  if [[ "${#rime_schemas[@]}" -ne 1 || "${rime_schemas[0]:-}" != "rime_ice" ]]; then
+    echo "Rime schema_list must be exactly rime_ice, got: ${rime_schemas[*]:-none}" >&2
+    exit 1
+  fi
+fi
+
 echo "repo validation ok"

@@ -1,5 +1,5 @@
 # AUR packages for the VM profile.
-# DMS is installed from the official repository by modules/20-dms.sh.
+# DMS is installed by the official installer in modules/20-dms.sh.
 
 opencode-bin
 flclash-appimage-bin
