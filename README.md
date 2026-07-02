@@ -14,6 +14,8 @@
 - 文件与媒体：Nautilus、Loupe、mpv、yazi
 - OCR/PDF：tesseract、中文/英文识别数据、poppler
 - 常用工具：git、paru、fzf、ripgrep、fd、eza、jq、glow
+- 编程环境：base-devel、clang、Python/pip、Node.js/npm、Go、Rust/cargo、JDK
+- 日常应用：Chrome、QQ、微信 AppImage、Obsidian
 - 个人配置：nvim、fish、kitty、niri、DMS、opencode、脚本、壁纸、头像
 
 这个仓库不负责 Arch 的分区、格式化、引导器安装，也不包含物理机专用驱动、电池优化、显卡特殊配置。
@@ -41,7 +43,7 @@ cd pang-arch-vm-setup
 ./install.sh -y
 ```
 
-脚本会直接安装完整环境，包括 QQ、微信、Chrome、Obsidian 等日常软件。
+脚本会直接安装完整环境，包括 QQ、微信 AppImage、Chrome、Obsidian 等日常软件。
 
 如果不想安装 DMS：
 

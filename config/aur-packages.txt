@@ -13,4 +13,4 @@ fcitx5-skin-fluentdark-git
 google-chrome
 linuxqq-appimage
 obsidian-bin
-wechat-universal-bwrap
+wechat-appimage

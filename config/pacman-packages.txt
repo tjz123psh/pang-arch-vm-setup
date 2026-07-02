@@ -74,6 +74,7 @@ tesseract-data-osd
 nodejs
 npm
 go
+rust
 python
 python-pip
 jdk-openjdk

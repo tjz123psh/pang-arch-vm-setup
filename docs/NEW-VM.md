@@ -60,7 +60,9 @@ cd pang-arch-vm-setup
 ./install.sh --skip-dms -y
 ```
 
-当前默认会安装完整个人 VM 环境，包括 Google Chrome、QQ、微信、Obsidian、Neovide、OCR/PDF 工具和个人脚本。
+当前默认会安装完整个人 VM 环境，包括 Google Chrome、QQ、微信 AppImage、Obsidian、Neovide、OCR/PDF 工具和个人脚本。
+
+开发/编程环境默认包含 `base-devel`、`clang`、`python`、`python-pip`、`nodejs`、`npm`、`go`、`rust` 和 `jdk-openjdk`。这里使用 Arch 官方仓库的 `rust` 包，它同时提供 `cargo` 和 `rustfmt`，这样 Rust 工具链会作为显式安装包保留，不会因为只是 AUR 构建依赖而变成孤儿包。仓库不默认使用 `rustup`，避免额外引入用户目录里的 toolchain 状态。
 
 ## 4. DMS 说明
 
@@ -152,5 +154,5 @@ find files -path '*/.git' -type d -print
 - 浏览器配置、代理配置、同步数据库、聊天记录和缓存不进入仓库。
 - 物理机驱动、电源管理、引导器和分区不属于这个仓库的范围。
 - DMS 目前没有完整中文界面，这是上游限制。
-- Wayland 下微信 bwrap 版本从 Nautilus 粘贴文件时，可能粘贴成路径；传文件优先用微信自己的文件选择器。
+- 微信使用 `wechat-appimage`，对齐当前主系统；不默认安装 `wechat-universal-bwrap` 沙箱版。
 - `paru-ui` 首次构建完整 AUR 索引需要网络访问；如果刷新失败，会回退到已有缓存。
