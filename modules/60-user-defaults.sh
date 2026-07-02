@@ -3,6 +3,25 @@
 applications_src="$ROOT_DIR/files/applications"
 applications_dst="$HOME/.local/share/applications"
 
+restore_dms_managed_configs() {
+  local src_config="$ROOT_DIR/files/config"
+
+  if [[ -d "$src_config/niri" ]]; then
+    sync_dir_contents "$src_config/niri" "$HOME/.config/niri"
+  fi
+
+  if [[ -d "$src_config/kitty" ]]; then
+    sync_dir_contents "$src_config/kitty" "$HOME/.config/kitty"
+  fi
+
+  if [[ -f "$src_config/DankMaterialShell/settings.json" ]]; then
+    install_file_or_dir "$src_config/DankMaterialShell/settings.json" \
+      "$HOME/.config/DankMaterialShell/settings.json"
+  fi
+}
+
+restore_dms_managed_configs
+
 if [[ -d "$applications_src" ]]; then
   sync_dir_contents "$applications_src" "$applications_dst"
 fi

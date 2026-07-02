@@ -81,6 +81,8 @@ clang
 shellcheck
 
 ttf-jetbrains-mono-nerd
+inter-font
+ttf-fira-code
 ttf-dejavu
 noto-fonts
 noto-fonts-cjk

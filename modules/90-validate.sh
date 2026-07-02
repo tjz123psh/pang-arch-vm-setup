@@ -37,6 +37,44 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     die "DMS command missing; rerun after pacman can install dms-shell-niri or use --skip-dms for base setup only"
   fi
 
+  if ! cmp -s "$ROOT_DIR/files/config/niri/config.kdl" "$HOME/.config/niri/config.kdl"; then
+    die "niri config does not match repository version"
+  fi
+
+  if grep -Eq '^[[:space:]]*include[[:space:]]+"dms/binds.kdl"' "$HOME/.config/niri/config.kdl"; then
+    die "niri config must not include DMS-generated dms/binds.kdl"
+  fi
+
+  if ! grep -Eq '^[[:space:]]*include[[:space:]]+"dms/keybinds.kdl"' "$HOME/.config/niri/config.kdl"; then
+    die "niri config must include repository dms/keybinds.kdl"
+  fi
+
+  if ! cmp -s "$ROOT_DIR/files/config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"; then
+    die "kitty config does not match repository version"
+  fi
+
+  for managed_config in \
+    niri/dms/colors.kdl \
+    niri/dms/keybinds.kdl \
+    niri/dms/windowrules.kdl \
+    niri/dms/input.kdl \
+    kitty/dank-tabs.conf \
+    kitty/dank-theme.conf
+  do
+    if ! cmp -s "$ROOT_DIR/files/config/$managed_config" "$HOME/.config/$managed_config"; then
+      die "$managed_config does not match repository version"
+    fi
+  done
+
+  if command -v jq >/dev/null 2>&1; then
+    if [[ "$(jq -r '.matugenTemplateNiri' "$HOME/.config/DankMaterialShell/settings.json")" != "false" ]]; then
+      die "DMS matugenTemplateNiri must be false"
+    fi
+    if [[ "$(jq -r '.matugenTemplateKitty' "$HOME/.config/DankMaterialShell/settings.json")" != "false" ]]; then
+      die "DMS matugenTemplateKitty must be false"
+    fi
+  fi
+
   applications_dst="$HOME/.local/share/applications"
 
   if [[ ! -f "$applications_dst/nvim.desktop" ]]; then

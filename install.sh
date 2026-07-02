@@ -67,9 +67,9 @@ main() {
   run_module "30-dotfiles.sh"
   run_module "40-scripts.sh"
   run_module "45-assets.sh"
-  run_module "60-user-defaults.sh"
   run_module "20-dms.sh"
   run_module "50-services.sh"
+  run_module "60-user-defaults.sh"
   run_module "90-validate.sh"
 
   log "Done"

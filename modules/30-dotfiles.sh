@@ -13,6 +13,12 @@ if ! find "$src_root" -mindepth 1 ! -name .keep -print -quit | grep -q .; then
   return 0
 fi
 
+if command -v systemctl >/dev/null 2>&1 && systemctl --user is-active --quiet dms.service; then
+  if ! run_cmd systemctl --user stop dms.service; then
+    warn "Failed to stop dms.service before dotfile deployment"
+  fi
+fi
+
 # Copy the contents into ~/.config instead of replacing ~/.config itself.
 # This keeps private files that are intentionally not committed, for example
 # ~/.config/opencode/opencode.json and ~/.config/fish/secrets.fish.
