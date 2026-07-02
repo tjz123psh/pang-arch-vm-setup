@@ -59,6 +59,8 @@ sudo pacman -S --needed dms-shell-niri
 
 `dms-shell-niri` 会带上 `dms-shell`，也会提供 niri 适配。这样不依赖 `install.danklinux.com` 的上游安装器，避免 GitHub API 或网络波动导致 `Could not fetch latest version`。
 
+为了接近上游安装器的完整体验，默认包列表还显式安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`。
+
 ## 5. 私密文件
 
 私密文件不进入仓库，需要安装完成后手动创建。

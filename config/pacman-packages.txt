@@ -25,11 +25,18 @@ polkit-gnome
 sddm
 qt6-declarative
 qt6-svg
+qt6-multimedia
+qt6ct
 nautilus
 loupe
 xdg-user-dirs
 open-vm-tools
 gtkmm3
+matugen
+cava
+power-profiles-daemon
+wtype
+cups-pk-helper
 
 fcitx5
 fcitx5-configtool
