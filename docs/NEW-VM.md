@@ -51,13 +51,13 @@ cd pang-arch-vm-setup
 
 ## 4. DMS 说明
 
-脚本只有在系统里没有 `dms` 命令时，才会运行上游安装器：
+脚本直接从 Arch 官方 `extra` 仓库安装：
 
 ```bash
-curl -fsSL https://install.danklinux.com | sh
+sudo pacman -S --needed dms-shell-niri
 ```
 
-安装后会额外确保 `dms-shell-niri` 存在，避免 DMS 和 niri 集成缺依赖。
+`dms-shell-niri` 会带上 `dms-shell`，也会提供 niri 适配。这样不依赖 `install.danklinux.com` 的上游安装器，避免 GitHub API 或网络波动导致 `Could not fetch latest version`。
 
 ## 5. 私密文件
 
