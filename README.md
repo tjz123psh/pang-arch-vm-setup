@@ -23,7 +23,7 @@
 一条命令安装：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
+tmp="$(mktemp -d)" && curl -fsSL https://codeload.github.com/tjz123psh/pang-arch-vm-setup/tar.gz/refs/heads/main | tar -xz -C "$tmp" && "$tmp/pang-arch-vm-setup-main/install.sh" -y
 ```
 
 如果想先手动克隆，也可以：
@@ -54,10 +54,10 @@ cd pang-arch-vm-setup
 刚装好的 Arch 虚拟机里，推荐直接执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
+tmp="$(mktemp -d)" && curl -fsSL https://codeload.github.com/tjz123psh/pang-arch-vm-setup/tar.gz/refs/heads/main | tar -xz -C "$tmp" && "$tmp/pang-arch-vm-setup-main/install.sh" -y
 ```
 
-如果 `raw.githubusercontent.com` 出现证书主机名不匹配或网络问题，改用不经过 raw 域名的克隆方式：
+这个入口每次都会用 `curl` 拉取 GitHub `main` 分支 tarball，不经过 `raw.githubusercontent.com`。如果仍然想使用持久仓库目录，可以手动克隆：
 
 ```bash
 mkdir -p ~/projects

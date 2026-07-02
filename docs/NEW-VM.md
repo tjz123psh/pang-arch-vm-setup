@@ -9,25 +9,17 @@
 在刚装好的 Arch 虚拟机里，用普通用户执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
+tmp="$(mktemp -d)" && curl -fsSL https://codeload.github.com/tjz123psh/pang-arch-vm-setup/tar.gz/refs/heads/main | tar -xz -C "$tmp" && "$tmp/pang-arch-vm-setup-main/install.sh" -y
 ```
 
-这个入口会自动安装基础工具、克隆仓库、更新仓库，然后执行 `./install.sh -y`。
+这个入口每次都会用 `curl` 拉取 GitHub `main` 分支 tarball，然后从临时目录执行 `./install.sh -y`。它不经过 `raw.githubusercontent.com`，用于规避 raw 域名证书主机名不匹配的问题。
 
-如果 `raw.githubusercontent.com` 报证书主机名不匹配，说明脚本还没下载下来，仓库内逻辑无法接管。改用不经过 raw 域名的方式：
+如果想保留持久仓库目录，则执行：
 
 ```bash
 mkdir -p ~/projects
 git clone https://github.com/tjz123psh/pang-arch-vm-setup.git ~/projects/pang-arch-vm-setup
 cd ~/projects/pang-arch-vm-setup
-./install.sh -y
-```
-
-如果前一次已经克隆过仓库，则执行：
-
-```bash
-cd ~/projects/pang-arch-vm-setup
-git pull --ff-only
 ./install.sh -y
 ```
 
