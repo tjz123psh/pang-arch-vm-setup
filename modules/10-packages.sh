@@ -86,6 +86,7 @@ install_aur_packages() {
 mapfile -t pacman_packages < <(read_package_list "$pacman_list")
 if ((${#pacman_packages[@]})); then
   run_cmd sudo pacman -S --needed --noconfirm "${pacman_packages[@]}"
+  run_cmd sudo pacman -D --asexplicit "${pacman_packages[@]}"
 fi
 
 remove_replaced_packages

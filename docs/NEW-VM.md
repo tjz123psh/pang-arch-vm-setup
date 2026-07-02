@@ -62,7 +62,7 @@ cd pang-arch-vm-setup
 
 当前默认会安装完整个人 VM 环境，包括 Google Chrome、QQ、微信 AppImage、Obsidian、Neovide、OCR/PDF 工具和个人脚本。
 
-开发/编程环境默认包含 `base-devel`、`clang`、`python`、`python-pip`、`nodejs`、`npm`、`go`、`rust` 和 `jdk-openjdk`。这里使用 Arch 官方仓库的 `rust` 包，它同时提供 `cargo` 和 `rustfmt`，这样 Rust 工具链会作为显式安装包保留，不会因为只是 AUR 构建依赖而变成孤儿包。仓库不默认使用 `rustup`，避免额外引入用户目录里的 toolchain 状态。
+开发/编程环境默认包含 `base-devel`、`clang`、`python`、`python-pip`、`nodejs`、`npm`、`go`、`rust` 和 `jdk-openjdk`。这里使用 Arch 官方仓库的 `rust` 包，它同时提供 `cargo` 和 `rustfmt`。安装脚本会把官方包列表里的项目标记为显式安装，避免 Rust 这类工具链因为曾经只是 AUR 构建依赖而变成孤儿包。仓库不默认使用 `rustup`，避免额外引入用户目录里的 toolchain 状态。
 
 ## 4. DMS 说明
 
