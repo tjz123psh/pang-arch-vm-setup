@@ -1,4 +1,2 @@
 patch:
-  schema_list:
-    - schema: rime_ice
   __include: rime_ice_suggestion:/

@@ -69,6 +69,16 @@ if [[ ! -e "$HOME/.cargo/env.fish" && -f "$rustup_fish" ]] \
   run_cmd rm -f "$rustup_fish"
 fi
 
+stale_fcitx_env="$HOME/.config/environment.d/80-fcitx5.conf"
+if [[ -f "$stale_fcitx_env" ]]; then
+  run_cmd rm -f "$stale_fcitx_env"
+fi
+
+if [[ -f "$HOME/.profile" ]] && grep -q "# BEGIN pang fcitx5 env" "$HOME/.profile"; then
+  # shellcheck disable=SC2016
+  run_shell 'profile="$HOME/.profile"; tmp="$(mktemp)"; sed "/# BEGIN pang fcitx5 env/,/# END pang fcitx5 env/d" "$profile" > "$tmp"; cat "$tmp" > "$profile"; rm -f "$tmp"'
+fi
+
 bad_nvim_color_plugin="$HOME/.config/nvim/lua/plugins/dankcolors.lua"
 if [[ -f "$bad_nvim_color_plugin" ]]; then
   run_cmd rm -f "$bad_nvim_color_plugin"
@@ -92,15 +102,3 @@ if getent group input >/dev/null 2>&1 && ! id -nG "$USER" | tr " " "\n" | grep -
   run_cmd sudo usermod -aG input "$USER"
   warn "Added $USER to input group; log out and log back in for this permission to take effect"
 fi
-
-# shellcheck disable=SC2016
-run_shell 'profile="$HOME/.profile"; touch "$profile"; tmp="$(mktemp)"; sed "/# BEGIN pang fcitx5 env/,/# END pang fcitx5 env/d" "$profile" > "$tmp"; cat "$tmp" > "$profile"; rm -f "$tmp"; cat >> "$profile" <<'\''EOF'\''
-
-# BEGIN pang fcitx5 env
-export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
-export INPUT_METHOD=fcitx
-export SDL_IM_MODULE=fcitx
-# END pang fcitx5 env
-EOF'
