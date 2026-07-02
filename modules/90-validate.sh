@@ -82,6 +82,11 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     die "Rime build file missing: $rime_default"
   fi
 
+  if [[ ! -f /usr/share/rime-data/wanxiang-lts-zh-hans.gram \
+    && ! -f "$HOME/.local/share/fcitx5/rime/wanxiang-lts-zh-hans.gram" ]]; then
+    die "Wanxiang grammar model missing: wanxiang-lts-zh-hans.gram"
+  fi
+
   if [[ -f "$HOME/.local/share/fcitx5/rime/user.yaml" ]] \
     && ! grep -q 'previously_selected_schema:[[:space:]]*rime_ice' "$HOME/.local/share/fcitx5/rime/user.yaml"; then
     die "Rime active schema must be rime_ice"

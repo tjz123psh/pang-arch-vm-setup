@@ -57,6 +57,15 @@ cd pang-arch-vm-setup
 curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
 ```
 
+如果 `raw.githubusercontent.com` 出现证书主机名不匹配或网络问题，改用不经过 raw 域名的克隆方式：
+
+```bash
+mkdir -p ~/projects
+git clone https://github.com/tjz123psh/pang-arch-vm-setup.git ~/projects/pang-arch-vm-setup
+cd ~/projects/pang-arch-vm-setup
+./install.sh -y
+```
+
 ## 注意
 
 - 脚本会安装系统软件和 AUR 软件。

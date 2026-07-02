@@ -48,6 +48,27 @@ ensure_paru() {
   run_shell 'tmp="$(mktemp -d)"; trap '\''rm -rf "$tmp"'\'' EXIT; git clone https://aur.archlinux.org/paru.git "$tmp/paru"; cd "$tmp/paru"; makepkg -si --noconfirm'
 }
 
+install_aur_packages() {
+  local failed=()
+  local pkg
+
+  for pkg in "$@"; do
+    if pacman -Q "$pkg" >/dev/null 2>&1; then
+      log "AUR package already installed: $pkg"
+      continue
+    fi
+
+    if ! run_cmd paru -S --needed --noconfirm --skipreview "$pkg"; then
+      warn "AUR package failed to install: $pkg"
+      failed+=("$pkg")
+    fi
+  done
+
+  if ((${#failed[@]})); then
+    warn "Continuing after failed AUR packages: ${failed[*]}"
+  fi
+}
+
 mapfile -t pacman_packages < <(read_package_list "$pacman_list")
 if ((${#pacman_packages[@]})); then
   run_cmd sudo pacman -S --needed --noconfirm "${pacman_packages[@]}"
@@ -58,5 +79,5 @@ ensure_paru
 mapfile -t aur_packages < <(read_package_list "$aur_list")
 filter_aur_packages aur_packages
 if ((${#aur_packages[@]})); then
-  run_cmd paru -S --needed --noconfirm --skipreview "${aur_packages[@]}"
+  install_aur_packages "${aur_packages[@]}"
 fi

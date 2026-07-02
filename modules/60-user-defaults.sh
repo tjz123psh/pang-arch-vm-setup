@@ -48,11 +48,27 @@ fi
 rime_user_yaml="$HOME/.local/share/fcitx5/rime/user.yaml"
 rime_config_src="$ROOT_DIR/files/config/fcitx5/rime"
 rime_data_dst="$HOME/.local/share/fcitx5/rime"
+wanxiang_grammar="wanxiang-lts-zh-hans.gram"
+
+ensure_wanxiang_grammar() {
+  local dst="$rime_data_dst/$wanxiang_grammar"
+  local url="https://github.com/amzxyz/RIME-LMDG/releases/download/LTS/$wanxiang_grammar"
+
+  if [[ -f "/usr/share/rime-data/$wanxiang_grammar" || -f "$dst" ]]; then
+    return 0
+  fi
+
+  warn "$wanxiang_grammar is missing; downloading fallback grammar model"
+  run_cmd curl -fL --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 1800 \
+    "$url" -o "$dst"
+}
+
 if [[ -d "$rime_config_src" ]]; then
   sync_dir_contents "$rime_config_src" "$rime_data_dst"
 fi
 
 run_cmd mkdir -p -- "$(dirname -- "$rime_user_yaml")"
+ensure_wanxiang_grammar
 
 stale_luna_custom="$HOME/.config/fcitx5/rime/luna_pinyin.custom.yaml"
 if [[ -f "$stale_luna_custom" ]]; then
