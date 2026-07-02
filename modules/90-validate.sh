@@ -33,6 +33,10 @@ if [[ -d "$HOME/scripts" ]]; then
 fi
 
 if [[ "$DRY_RUN" -ne 1 ]]; then
+  if [[ "$SKIP_DMS" -ne 1 ]] && ! command -v dms >/dev/null 2>&1; then
+    die "DMS command missing; rerun after pacman can install dms-shell-niri or use --skip-dms for base setup only"
+  fi
+
   applications_dst="$HOME/.local/share/applications"
 
   if [[ ! -f "$applications_dst/nvim.desktop" ]]; then

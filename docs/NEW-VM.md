@@ -51,13 +51,19 @@ cd pang-arch-vm-setup
 
 ## 4. DMS 说明
 
-脚本优先运行 DMS 官方安装器：
+脚本默认安装方式与 DMS 官方安装器保持一致：下载 GitHub release 里的 `dankinstall` 二进制、校验 sha256 后执行。
+
+和直接运行下面命令相比：
 
 ```bash
 curl -fsSL https://install.danklinux.com | bash
 ```
 
-如果官方安装器因为 GitHub API 或网络波动失败，脚本才会回退到 Arch 官方 `dms-shell-niri` 包，避免整个安装中断。默认包列表还显式安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`、`kimageformats`。
+仓库脚本只改了一个关键点：不使用 `api.github.com/repos/.../releases/latest` 获取最新版，而是通过 GitHub `releases/latest` 跳转 URL 解析 tag，避免匿名 GitHub API 60 次/小时限流。这样适合反复在新 VM 上整机测试。
+
+DMS 模块排在 dotfiles、脚本、资产、Rime、fish、用户目录和 MIME 设置之后；即使 DMS 下载或安装失败，也不会跳过这些基础配置。官方 release installer 失败时，会回退到 Arch 官方 `dms-shell-niri` 包；当前主系统的 `/usr/bin/dms` 也是 Arch 包 `dms-shell` 提供的。
+
+脚本仍会安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`、`kimageformats`。默认安装最后会校验 `dms` 命令是否存在；如果只想先部署基础环境，可以使用 `./install.sh --skip-dms -y`。
 
 ## 5. 私密文件
 
