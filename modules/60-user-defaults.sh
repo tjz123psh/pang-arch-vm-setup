@@ -9,11 +9,19 @@ fi
 
 if command -v xdg-mime >/dev/null 2>&1; then
   if [[ -f "$applications_dst/nvim.desktop" || -f "$applications_src/nvim.desktop" ]]; then
-    run_cmd xdg-mime default nvim.desktop text/plain
+    if ! run_cmd xdg-mime default nvim.desktop text/plain; then
+      warn "Failed to set text/plain MIME default to nvim.desktop"
+    fi
+  else
+    warn "nvim.desktop is missing; cannot set text/plain MIME default"
   fi
 
   if [[ -f /usr/share/applications/org.gnome.Nautilus.desktop ]]; then
-    run_cmd xdg-mime default org.gnome.Nautilus.desktop inode/directory
+    if ! run_cmd xdg-mime default org.gnome.Nautilus.desktop inode/directory; then
+      warn "Failed to set directory MIME default to Nautilus"
+    fi
+  else
+    warn "Nautilus desktop entry is missing; cannot set directory MIME default"
   fi
 fi
 
@@ -59,6 +67,8 @@ fi
 if command -v rime_deployer >/dev/null 2>&1; then
   # shellcheck disable=SC2016
   run_shell 'cd "$HOME/.local/share/fcitx5/rime" && rime_deployer --set-active-schema rime_ice'
+  # shellcheck disable=SC2016
+  run_shell 'printf "%s\n" "var:" "  previously_selected_schema: rime_ice" > "$HOME/.local/share/fcitx5/rime/user.yaml"'
   run_cmd rm -rf -- "$rime_data_dst/build"
   run_cmd mkdir -p -- "$rime_data_dst/build"
   run_cmd rime_deployer --build "$rime_data_dst" /usr/share/rime-data "$rime_data_dst/build"
@@ -103,11 +113,16 @@ if command -v fish >/dev/null 2>&1; then
   current_shell="$(getent passwd "$USER" | cut -d: -f7)"
 
   if [[ "$current_shell" != "$fish_path" ]]; then
-    run_cmd chsh -s "$fish_path" "$USER"
+    if ! run_cmd sudo usermod --shell "$fish_path" "$USER"; then
+      warn "Failed to change default shell to $fish_path"
+    fi
   fi
 fi
 
 if getent group input >/dev/null 2>&1 && ! id -nG "$USER" | tr " " "\n" | grep -Fxq input; then
-  run_cmd sudo usermod -aG input "$USER"
-  warn "Added $USER to input group; log out and log back in for this permission to take effect"
+  if run_cmd sudo usermod -aG input "$USER"; then
+    warn "Added $USER to input group; log out and log back in for this permission to take effect"
+  else
+    warn "Failed to add $USER to input group"
+  fi
 fi

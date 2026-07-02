@@ -8,6 +8,8 @@ readonly INDEX_CACHE="$CACHE_ROOT/package-index.tsv"
 readonly AUR_PACKAGE_LIST_CACHE="$CACHE_ROOT/aur-packages.txt"
 readonly INDEX_MAX_AGE="${PARU_UI_INDEX_MAX_AGE:-3600}"
 readonly AUR_INDEX_MAX_AGE="${PARU_UI_AUR_INDEX_MAX_AGE:-86400}"
+readonly NETWORK_TIMEOUT="${PARU_UI_NETWORK_TIMEOUT:-60}"
+readonly COMMAND_TIMEOUT="${PARU_UI_COMMAND_TIMEOUT:-15}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SELF")" && pwd -P)"
 readonly SCRIPT_DIR
 readonly MODEL_CACHE="$CACHE_ROOT/opencode_model"
@@ -70,6 +72,17 @@ cache_file_for() {
   printf '%s/%s.txt\n' "$(cache_dir)" "$(cache_key "$ref")"
 }
 
+with_timeout() {
+  local seconds="$1"
+  shift
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  else
+    "$@"
+  fi
+}
+
 ensure_cache_dir() {
   mkdir -p -- "$(cache_dir)"
 }
@@ -86,12 +99,9 @@ build_preview_content() {
   fi
 
   if [[ "$source" == "aur" ]]; then
-    available="$(paru -Si --color=never --aur -- "$pkg" 2>/dev/null || true)"
+    available="$(with_timeout "$COMMAND_TIMEOUT" paru -Si --color=never --aur -- "$pkg" 2>/dev/null || true)"
   else
     available="$(pacman -Si -- "$pkg" 2>/dev/null || true)"
-    if [[ -z "$available" && "$source" == "$ref" ]]; then
-      available="$(paru -Si --color=never -- "$pkg" 2>/dev/null || true)"
-    fi
   fi
 
   installed="$(pacman -Qi -- "$pkg" 2>/dev/null || true)"
@@ -161,7 +171,7 @@ aur_package_list() {
   fi
 
   tmp_file="$(mktemp "$CACHE_ROOT/aur-packages.XXXXXX")"
-  if curl -fsSL https://aur.archlinux.org/packages.gz | gzip -dc >"$tmp_file"; then
+  if curl -fsSL --connect-timeout 10 --max-time "$NETWORK_TIMEOUT" https://aur.archlinux.org/packages.gz | gzip -dc >"$tmp_file"; then
     mv -- "$tmp_file" "$AUR_PACKAGE_LIST_CACHE"
     cat -- "$AUR_PACKAGE_LIST_CACHE"
     return 0
@@ -174,8 +184,8 @@ aur_package_list() {
     return 0
   fi
 
-  printf 'paru-ui: AUR package index refresh failed; falling back to paru completion cache\n' >&2
-  paru -P --complete | awk '$2 == "AUR" { print $1 }'
+  printf 'paru-ui: AUR package index refresh failed; continuing without AUR index\n' >&2
+  return 0
 }
 
 strip_ansi_file() {

@@ -48,17 +48,34 @@ if systemctl --user list-unit-files mako.service >/dev/null 2>&1; then
   fi
 fi
 
+if systemctl --user list-unit-files >/dev/null 2>&1; then
+  if ! run_cmd systemctl --user daemon-reload; then
+    warn "Failed to reload systemd user manager"
+  fi
+else
+  warn "systemd user manager is not available; skipping user services"
+fi
+
 for unit in "${user_units[@]}"; do
   if systemctl --user list-unit-files "$unit" >/dev/null 2>&1; then
     if [[ "$unit" == "dms.service" ]]; then
-      run_cmd systemctl --user enable "$unit"
+      if ! run_cmd systemctl --user enable "$unit"; then
+        warn "Failed to enable user unit: $unit"
+      fi
       if [[ "$DRY_RUN" -eq 1 ]] || systemctl --user is-active --quiet graphical-session.target; then
-        run_cmd systemctl --user start "$unit"
+        if ! run_cmd systemctl --user start "$unit"; then
+          warn "Failed to start user unit: $unit"
+        fi
       else
         log "dms.service enabled; it will start on next graphical session"
       fi
     else
-      run_cmd systemctl --user enable --now "$unit"
+      if ! run_cmd systemctl --user enable "$unit"; then
+        warn "Failed to enable user unit: $unit"
+      fi
+      if ! run_cmd systemctl --user start "$unit"; then
+        warn "Failed to start user unit: $unit"
+      fi
     fi
   else
     warn "User unit not found: $unit"
