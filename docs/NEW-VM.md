@@ -9,13 +9,13 @@
 在刚装好的 Arch 虚拟机里，用普通用户执行：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/tjz123psh/pang-arch-vm-setup@main/bootstrap.sh | bash -s -- -y
+curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
 ```
 
-这个入口仍然是 `curl | bash`，但不经过 `raw.githubusercontent.com`，用于规避 raw 域名证书主机名不匹配的问题。原始 GitHub raw 入口仍可在网络正常时使用：
+如果 `raw.githubusercontent.com` 暂时不可用，可以试 jsDelivr 备用入口：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
+curl -fsSL https://cdn.jsdelivr.net/gh/tjz123psh/pang-arch-vm-setup@main/bootstrap.sh | bash -s -- -y
 ```
 
 如果想保留持久仓库目录，则执行：
