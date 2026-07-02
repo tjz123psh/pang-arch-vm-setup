@@ -54,6 +54,7 @@ require_arch() {
   [[ -r /etc/arch-release ]] || die "This bootstrap is for Arch Linux"
   [[ "$EUID" -ne 0 ]] || die "Run as a normal user with sudo access, not as root"
   command -v sudo >/dev/null 2>&1 || die "sudo is required"
+  sudo -v || die "sudo authentication failed"
 }
 
 ensure_base_tools() {

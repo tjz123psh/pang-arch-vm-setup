@@ -23,7 +23,7 @@
 一条命令安装：
 
 ```bash
-tmp="$(mktemp -d)" && curl -fsSL https://codeload.github.com/tjz123psh/pang-arch-vm-setup/tar.gz/refs/heads/main | tar -xz -C "$tmp" && "$tmp/pang-arch-vm-setup-main/install.sh" -y
+curl -fsSL https://cdn.jsdelivr.net/gh/tjz123psh/pang-arch-vm-setup@main/bootstrap.sh | bash -s -- -y
 ```
 
 如果想先手动克隆，也可以：
@@ -54,10 +54,16 @@ cd pang-arch-vm-setup
 刚装好的 Arch 虚拟机里，推荐直接执行：
 
 ```bash
-tmp="$(mktemp -d)" && curl -fsSL https://codeload.github.com/tjz123psh/pang-arch-vm-setup/tar.gz/refs/heads/main | tar -xz -C "$tmp" && "$tmp/pang-arch-vm-setup-main/install.sh" -y
+curl -fsSL https://cdn.jsdelivr.net/gh/tjz123psh/pang-arch-vm-setup@main/bootstrap.sh | bash -s -- -y
 ```
 
-这个入口每次都会用 `curl` 拉取 GitHub `main` 分支 tarball，不经过 `raw.githubusercontent.com`。如果仍然想使用持久仓库目录，可以手动克隆：
+这个入口仍然是 `curl | bash`，但不经过 `raw.githubusercontent.com`，用于规避 raw 域名证书主机名不匹配的问题。原始 GitHub raw 入口仍可在网络正常时使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tjz123psh/pang-arch-vm-setup/main/bootstrap.sh | bash -s -- -y
+```
+
+如果想使用持久仓库目录，可以手动克隆：
 
 ```bash
 mkdir -p ~/projects
