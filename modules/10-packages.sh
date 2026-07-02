@@ -37,6 +37,20 @@ filter_aur_packages() {
   packages_ref=("${filtered[@]}")
 }
 
+remove_replaced_packages() {
+  local pkg
+  local replaced_packages=(
+    wechat-universal-bwrap
+  )
+
+  for pkg in "${replaced_packages[@]}"; do
+    if pacman -Q "$pkg" >/dev/null 2>&1; then
+      log "Removing replaced package: $pkg"
+      run_cmd sudo pacman -Rns --noconfirm "$pkg"
+    fi
+  done
+}
+
 ensure_paru() {
   if command -v paru >/dev/null 2>&1; then
     log "paru already installed"
@@ -74,6 +88,7 @@ if ((${#pacman_packages[@]})); then
   run_cmd sudo pacman -S --needed --noconfirm "${pacman_packages[@]}"
 fi
 
+remove_replaced_packages
 ensure_paru
 
 mapfile -t aur_packages < <(read_package_list "$aur_list")

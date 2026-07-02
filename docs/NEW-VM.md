@@ -154,5 +154,5 @@ find files -path '*/.git' -type d -print
 - 浏览器配置、代理配置、同步数据库、聊天记录和缓存不进入仓库。
 - 物理机驱动、电源管理、引导器和分区不属于这个仓库的范围。
 - DMS 目前没有完整中文界面，这是上游限制。
-- 微信使用 `wechat-appimage`，对齐当前主系统；不默认安装 `wechat-universal-bwrap` 沙箱版。
+- 微信使用 `wechat-appimage`，对齐当前主系统；不默认安装 `wechat-universal-bwrap` 沙箱版。如果旧 VM 里已经装过 bwrap 版本，安装脚本会先移除旧包再安装 AppImage 版本。
 - `paru-ui` 首次构建完整 AUR 索引需要网络访问；如果刷新失败，会回退到已有缓存。
