@@ -2,6 +2,7 @@
 
 system_units=(
   NetworkManager.service
+  power-profiles-daemon.service
   vmtoolsd.service
   vmware-vmblock-fuse.service
 )
@@ -49,7 +50,16 @@ fi
 
 for unit in "${user_units[@]}"; do
   if systemctl --user list-unit-files "$unit" >/dev/null 2>&1; then
-    run_cmd systemctl --user enable --now "$unit"
+    if [[ "$unit" == "dms.service" ]]; then
+      run_cmd systemctl --user enable "$unit"
+      if [[ "$DRY_RUN" -eq 1 ]] || systemctl --user is-active --quiet graphical-session.target; then
+        run_cmd systemctl --user start "$unit"
+      else
+        log "dms.service enabled; it will start on next graphical session"
+      fi
+    else
+      run_cmd systemctl --user enable --now "$unit"
+    fi
   else
     warn "User unit not found: $unit"
   fi

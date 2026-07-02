@@ -48,6 +48,10 @@ if [[ -f "$rime_user_yaml" ]]; then
   run_cmd sed -i '/previously_selected_schema:/d' "$rime_user_yaml"
 fi
 
+run_cmd mkdir -p -- "$(dirname -- "$rime_user_yaml")"
+# shellcheck disable=SC2016
+run_shell 'printf "%s\n" "var:" "  previously_selected_schema: rime_ice" > "$HOME/.local/share/fcitx5/rime/user.yaml"'
+
 stale_luna_custom="$HOME/.config/fcitx5/rime/luna_pinyin.custom.yaml"
 if [[ -f "$stale_luna_custom" ]]; then
   run_cmd rm -f "$stale_luna_custom"
@@ -83,3 +87,20 @@ if command -v fish >/dev/null 2>&1; then
     run_cmd chsh -s "$fish_path" "$USER"
   fi
 fi
+
+if getent group input >/dev/null 2>&1 && ! id -nG "$USER" | tr " " "\n" | grep -Fxq input; then
+  run_cmd sudo usermod -aG input "$USER"
+  warn "Added $USER to input group; log out and log back in for this permission to take effect"
+fi
+
+# shellcheck disable=SC2016
+run_shell 'profile="$HOME/.profile"; touch "$profile"; tmp="$(mktemp)"; sed "/# BEGIN pang fcitx5 env/,/# END pang fcitx5 env/d" "$profile" > "$tmp"; cat "$tmp" > "$profile"; rm -f "$tmp"; cat >> "$profile" <<'\''EOF'\''
+
+# BEGIN pang fcitx5 env
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export INPUT_METHOD=fcitx
+export SDL_IM_MODULE=fcitx
+# END pang fcitx5 env
+EOF'

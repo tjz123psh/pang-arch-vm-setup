@@ -27,6 +27,7 @@ qt6-declarative
 qt6-svg
 qt6-multimedia
 qt6ct
+kimageformats
 nautilus
 loupe
 xdg-user-dirs
@@ -43,6 +44,7 @@ fcitx5-configtool
 fcitx5-gtk
 fcitx5-qt
 fcitx5-rime
+fcitx5-chinese-addons
 
 neovim
 neovide
@@ -79,6 +81,7 @@ clang
 shellcheck
 
 ttf-jetbrains-mono-nerd
+ttf-dejavu
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji

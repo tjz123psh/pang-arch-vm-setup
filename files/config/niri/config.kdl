@@ -75,6 +75,12 @@ environment {
     XDG_CURRENT_DESKTOP "niri"
     // GTK 使用 OpenGL 渲染器（解决 N 卡双显卡下 GTK 应用启动慢的问题）
     GSK_RENDERER "gl"
+    // fcitx5 输入法环境
+    GTK_IM_MODULE "fcitx"
+    QT_IM_MODULE "fcitx"
+    XMODIFIERS "@im=fcitx"
+    INPUT_METHOD "fcitx"
+    SDL_IM_MODULE "fcitx"
 }
 
 

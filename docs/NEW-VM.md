@@ -51,15 +51,13 @@ cd pang-arch-vm-setup
 
 ## 4. DMS 说明
 
-脚本直接从 Arch 官方 `extra` 仓库安装：
+脚本优先运行 DMS 官方安装器：
 
 ```bash
-sudo pacman -S --needed dms-shell-niri
+curl -fsSL https://install.danklinux.com | bash
 ```
 
-`dms-shell-niri` 会带上 `dms-shell`，也会提供 niri 适配。这样不依赖 `install.danklinux.com` 的上游安装器，避免 GitHub API 或网络波动导致 `Could not fetch latest version`。
-
-为了接近上游安装器的完整体验，默认包列表还显式安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`。
+如果官方安装器因为 GitHub API 或网络波动失败，脚本才会回退到 Arch 官方 `dms-shell-niri` 包，避免整个安装中断。默认包列表还显式安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`、`kimageformats`。
 
 ## 5. 私密文件
 
