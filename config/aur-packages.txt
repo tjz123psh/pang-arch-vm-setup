@@ -8,6 +8,7 @@ leaf-markdown-viewer-bin
 rime-ice-git
 rime-wanxiang-gram-zh-hans
 fcitx5-skin-fluentdark-git
+downgrade
 
 # Daily desktop apps.
 google-chrome

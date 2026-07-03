@@ -116,6 +116,7 @@ playlist_limit=110
 ytdl_format="bestvideo[height<=1080][vcodec!=none]+bestaudio[acodec!=none]/best[height<=1080]/best"
 # 必须用 cookies-from-browser（流式），写 cookies=文件会丢失 session cookie 达不到高清
 ytdl_options="cookies-from-browser=$browser_cookie_source,impersonate=Chrome-131,format=$ytdl_format"
+playlist_probe="${B23_PLAYLIST_PROBE:-auto}"
 
 play_with_mpv() {
   mpv \
@@ -124,6 +125,71 @@ play_with_mpv() {
     --no-terminal \
     "$1" &
   mpv_pid=$!
+}
+
+has_explicit_part() {
+  [[ "$url" =~ [\?\&]p= ]] || [[ "$url" =~ [\?\&]page= ]]
+}
+
+is_playlist_like_url() {
+  case "$url" in
+    *bilibili.com/bangumi/*|*bilibili.com/medialist*|*bilibili.com/watchlater*|*bilibili.com/space/*|*space.bilibili.com/*)
+      return 0
+      ;;
+    *[\?\&]list=*|*[\?\&]sid=*|*[\?\&]season_id=*|*[\?\&]series_id=*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+should_probe_playlist() {
+  if has_explicit_part; then
+    return 1
+  fi
+
+  case "$playlist_probe" in
+    1|true|yes|always)
+      return 0
+      ;;
+    0|false|no|never)
+      return 1
+      ;;
+    auto|"")
+      is_playlist_like_url
+      ;;
+    *)
+      notify "B23_PLAYLIST_PROBE 只能是 auto/always/never"
+      exit 2
+      ;;
+  esac
+}
+
+probe_and_play_playlist() {
+  local entries_file first_line entry_count
+
+  entries_file="$(mktemp /tmp/b23-XXXXXX.txt)"
+  # 只有明显列表链接才在前台探测，普通 BV/b23 链接直接交给 mpv，避免启动前长时间等待。
+  yt-dlp --flat-playlist --yes-playlist --playlist-end "$playlist_limit" \
+    --cookies-from-browser "$browser_cookie_source" \
+    --print url "$url" 2>/dev/null > "$entries_file" || true
+
+  read -r first_line < "$entries_file" || first_line=""
+  if [[ "$first_line" == "NA" ]]; then
+    play_with_mpv "$url"
+    rm -f "$entries_file"
+    notify "播放中"
+  elif [[ -s "$entries_file" ]]; then
+    entry_count=$(wc -l < "$entries_file" 2>/dev/null || echo 0)
+    play_playlist_with_mpv "$entries_file"
+    notify "播放中 ($entry_count 集)"
+  else
+    play_with_mpv "$url"
+    rm -f "$entries_file"
+    notify "播放中"
+  fi
 }
 
 play_playlist_with_mpv() {
@@ -140,40 +206,11 @@ play_playlist_with_mpv() {
   mpv_pid=$!
 }
 
-# 如果 URL 已指定具体分 P（?p=N 或 ?page=N），跳过探测直接播放
-if [[ "$url" =~ [\?\&]p= ]] || [[ "$url" =~ [\?\&]page= ]]; then
-  has_single_part=true
+if should_probe_playlist; then
+  probe_and_play_playlist
 else
-  has_single_part=false
-  # 探测合集条目（B 站多 P / 系列 / 合集），--print url 比 -j 快一倍
-  entries_file="$(mktemp /tmp/b23-XXXXXX.txt)"
-  yt-dlp --flat-playlist --yes-playlist --playlist-end "$playlist_limit" \
-    --cookies-from-browser "$browser_cookie_source" \
-    --print url "$url" 2>/dev/null > "$entries_file" || true
-fi
-
-if $has_single_part; then
-  # 指定分 P / 单视频，直接播放
   play_with_mpv "$url"
   notify "播放中"
-else
-  read -r first_line < "$entries_file" || first_line=""
-  if [[ "$first_line" == "NA" ]]; then
-    # 单视频（probe 确认非合集），直接播放
-    play_with_mpv "$url"
-    rm -f "$entries_file"
-    notify "播放中"
-  elif [[ -s "$entries_file" ]]; then
-    # 合集，用 playlist 文件
-    entry_count=$(wc -l < "$entries_file" 2>/dev/null || echo 0)
-    play_playlist_with_mpv "$entries_file"
-    notify "播放中 ($entry_count 集)"
-  else
-    # 探测失败，尝试直接播放
-    play_with_mpv "$url"
-    rm -f "$entries_file"
-    notify "播放中"
-  fi
 fi
 
 disown "$mpv_pid" 2>/dev/null || true

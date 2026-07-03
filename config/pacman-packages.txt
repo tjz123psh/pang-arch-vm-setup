@@ -1,5 +1,5 @@
 # Official repository packages for the VM profile.
-# Keep this VM-friendly: no physical GPU drivers, laptop battery tools, or machine-specific firmware.
+# Keep this VM-friendly: no physical GPU drivers or machine-specific firmware.
 
 base-devel
 git
@@ -60,11 +60,20 @@ yazi
 xdg-utils
 mpv
 yt-dlp
+libnotify
 poppler
 poppler-glib
 wl-clipboard
 xclip
 fastfetch
+flatpak
+pacman-contrib
+reflector
+upower
+strace
+pciutils
+mesa-utils
+vulkan-tools
 tesseract
 tesseract-data-chi_sim
 tesseract-data-chi_sim_vert
