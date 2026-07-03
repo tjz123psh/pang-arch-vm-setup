@@ -67,6 +67,7 @@ fi
 rime_user_yaml="$HOME/.local/share/fcitx5/rime/user.yaml"
 rime_config_src="$ROOT_DIR/files/config/fcitx5/rime"
 rime_data_dst="$HOME/.local/share/fcitx5/rime"
+rime_config_dst="$HOME/.config/fcitx5/rime"
 wanxiang_grammar="wanxiang-lts-zh-hans.gram"
 
 ensure_wanxiang_grammar() {
@@ -82,28 +83,39 @@ ensure_wanxiang_grammar() {
     "$url" -o "$dst"
 }
 
-if [[ -d "$rime_config_src" ]]; then
-  sync_dir_contents "$rime_config_src" "$rime_data_dst"
-fi
+restore_rime_configs() {
+  local target="$1"
+  local stale_file
+
+  run_cmd mkdir -p -- "$target"
+
+  for stale_file in \
+    "$target/default.yaml" \
+    "$target/default.custom.yaml" \
+    "$target/luna_pinyin.custom.yaml" \
+    "$target/luna_pinyin_simp.custom.yaml" \
+    "$target/luna_pinyin_fluency.custom.yaml"; do
+    if [[ -e "$stale_file" || -L "$stale_file" ]]; then
+      run_cmd rm -f -- "$stale_file"
+    fi
+  done
+
+  if [[ -d "$rime_config_src" ]]; then
+    sync_dir_contents "$rime_config_src" "$target"
+  fi
+}
+
+restore_rime_configs "$rime_config_dst"
+restore_rime_configs "$rime_data_dst"
 
 run_cmd mkdir -p -- "$(dirname -- "$rime_user_yaml")"
 ensure_wanxiang_grammar
-
-stale_luna_custom="$HOME/.config/fcitx5/rime/luna_pinyin.custom.yaml"
-if [[ -f "$stale_luna_custom" ]]; then
-  run_cmd rm -f "$stale_luna_custom"
-fi
-
-stale_luna_data_custom="$HOME/.local/share/fcitx5/rime/luna_pinyin.custom.yaml"
-if [[ -f "$stale_luna_data_custom" ]]; then
-  run_cmd rm -f "$stale_luna_data_custom"
-fi
 
 if command -v rime_deployer >/dev/null 2>&1; then
   # shellcheck disable=SC2016
   run_shell 'cd "$HOME/.local/share/fcitx5/rime" && rime_deployer --set-active-schema rime_ice'
   # shellcheck disable=SC2016
-  run_shell 'printf "%s\n" "var:" "  previously_selected_schema: rime_ice" > "$HOME/.local/share/fcitx5/rime/user.yaml"'
+  run_shell 'user_yaml="$HOME/.local/share/fcitx5/rime/user.yaml"; now="$(date +%s)"; printf "%s\n" "var:" "  previously_selected_schema: rime_ice" "  schema_access_time:" "    rime_ice: $now" > "$user_yaml"'
   run_cmd rm -rf -- "$rime_data_dst/build"
   run_cmd mkdir -p -- "$rime_data_dst/build"
   run_cmd rime_deployer --build "$rime_data_dst" /usr/share/rime-data "$rime_data_dst/build"
@@ -113,7 +125,12 @@ elif [[ ! -f "$rime_user_yaml" ]]; then
 fi
 
 if command -v fcitx5-remote >/dev/null 2>&1 && fcitx5-remote --check >/dev/null 2>&1; then
-  run_cmd fcitx5-remote -r
+  if ! run_cmd fcitx5-remote -r; then
+    warn "Failed to reload fcitx5; log out and back in to load the restored Rime config"
+  fi
+  if ! run_cmd fcitx5-remote -s rime; then
+    warn "Failed to switch fcitx5 input method to rime"
+  fi
 fi
 
 rustup_fish="$HOME/.config/fish/conf.d/rustup.fish"

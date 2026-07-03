@@ -30,9 +30,9 @@
 
 ## 默认依赖
 
-仓库的 pacman/AUR 包列表会显式安装常用入口所需依赖：`b23` 需要的 `mpv`、`yt-dlp`、`wl-clipboard`、`libnotify`；包维护脚本需要的 `pacman-contrib`、`downgrade`、`strace`、`flatpak`；桌面/诊断脚本需要的 `upower`、`reflector`、`pciutils`、`mesa-utils`、`vulkan-tools`。
+仓库的 pacman/AUR 包列表会显式安装常用入口所需依赖：`b23` 需要的 `mpv`、`yt-dlp`、`wl-clipboard`、`libnotify`；包维护脚本需要的 `pacman-contrib`、`downgrade`、`strace`、`flatpak`；桌面/诊断脚本需要的 `upower`、`reflector`、`pciutils`、`mesa-utils`、`vulkan-tools`；快照脚本需要的 `util-linux`、`polkit`、`btrfs-progs`、`snapper`、`btrfs-assistant`。
 
-`quicksave`、`quickload`、`boot-check` 涉及 Btrfs、Snapper、GRUB 和双系统启动链，属于机器模型相关工具，不在 VM 默认包列表里强装。
+`quicksave`、`quickload`、`clean` 会直接调用 Btrfs/Snapper 工具，因此相关运行依赖默认安装。GRUB、grub-btrfs、os-prober、efibootmgr 仍属于启动链选择，不在 VM 默认包列表里强装。
 
 移动脚本时必须先检查引用：
 

@@ -7,6 +7,7 @@ curl
 wget
 ca-certificates
 sudo
+util-linux
 
 networkmanager
 pipewire
@@ -21,6 +22,7 @@ fuzzel
 xwayland-satellite
 xdg-desktop-portal-gnome
 xdg-desktop-portal-gtk
+polkit
 polkit-gnome
 sddm
 qt6-declarative
@@ -74,6 +76,9 @@ strace
 pciutils
 mesa-utils
 vulkan-tools
+btrfs-progs
+snapper
+btrfs-assistant
 tesseract
 tesseract-data-chi_sim
 tesseract-data-chi_sim_vert

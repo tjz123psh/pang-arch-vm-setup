@@ -125,6 +125,17 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
   fi
 
   rime_default="$HOME/.local/share/fcitx5/rime/build/default.yaml"
+  for rime_custom in \
+    "$HOME/.config/fcitx5/rime/default.custom.yaml" \
+    "$HOME/.local/share/fcitx5/rime/default.custom.yaml"; do
+    if ! cmp -s "$ROOT_DIR/files/config/fcitx5/rime/default.custom.yaml" "$rime_custom"; then
+      die "Rime default.custom.yaml does not match repository version: $rime_custom"
+    fi
+    if grep -Eq 'luna_pinyin|luna_pinyin_simp|luna_pinyin_fluency' "$rime_custom"; then
+      die "Rime custom config still contains luna pinyin: $rime_custom"
+    fi
+  done
+
   if [[ -f "$rime_default" ]]; then
     mapfile -t rime_schemas < <(awk '$1 == "-" && $2 == "schema:" { print $3 }' "$rime_default")
     if [[ "${#rime_schemas[@]}" -ne 1 || "${rime_schemas[0]:-}" != "rime_ice" ]]; then
@@ -143,6 +154,18 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     && ! grep -q 'previously_selected_schema:[[:space:]]*rime_ice' "$HOME/.local/share/fcitx5/rime/user.yaml"; then
     die "Rime active schema must be rime_ice"
   fi
+
+  for stale_rime in \
+    "$HOME/.config/fcitx5/rime/luna_pinyin.custom.yaml" \
+    "$HOME/.config/fcitx5/rime/luna_pinyin_simp.custom.yaml" \
+    "$HOME/.config/fcitx5/rime/luna_pinyin_fluency.custom.yaml" \
+    "$HOME/.local/share/fcitx5/rime/luna_pinyin.custom.yaml" \
+    "$HOME/.local/share/fcitx5/rime/luna_pinyin_simp.custom.yaml" \
+    "$HOME/.local/share/fcitx5/rime/luna_pinyin_fluency.custom.yaml"; do
+    if [[ -e "$stale_rime" || -L "$stale_rime" ]]; then
+      die "Stale luna pinyin config remains: $stale_rime"
+    fi
+  done
 
   if command -v fish >/dev/null 2>&1; then
     fish_path="$(command -v fish)"
