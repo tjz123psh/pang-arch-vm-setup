@@ -53,6 +53,10 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     die "kitty config does not match repository version"
   fi
 
+  if ! cmp -s "$ROOT_DIR/files/config/DankMaterialShell/settings.json" "$HOME/.config/DankMaterialShell/settings.json"; then
+    die "DMS settings.json does not match repository version"
+  fi
+
   for managed_config in \
     niri/dms/colors.kdl \
     niri/dms/keybinds.kdl \
@@ -72,6 +76,16 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     fi
     if [[ "$(jq -r '.matugenTemplateKitty' "$HOME/.config/DankMaterialShell/settings.json")" != "false" ]]; then
       die "DMS matugenTemplateKitty must be false"
+    fi
+    if [[ "$(jq -r '.fontFamily' "$HOME/.config/DankMaterialShell/settings.json")" != "Inter Variable" ]]; then
+      die "DMS fontFamily must be Inter Variable"
+    fi
+  fi
+
+  if command -v fc-match >/dev/null 2>&1; then
+    dms_font_match="$(fc-match -f '%{family}\n' 'Inter Variable' 2>/dev/null | head -n 1 || true)"
+    if [[ "$dms_font_match" != *Inter* ]]; then
+      die "Inter Variable font is not available to fontconfig, got: ${dms_font_match:-none}"
     fi
   fi
 
@@ -151,6 +165,9 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
   if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files dms.service >/dev/null 2>&1; then
     if ! systemctl --user is-enabled --quiet dms.service; then
       die "dms.service is not enabled"
+    fi
+    if systemctl --user is-active --quiet dms.service; then
+      die "dms.service should not be active during install validation; it must start after restored configs are in place"
     fi
   fi
 fi
