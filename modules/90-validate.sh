@@ -147,4 +147,10 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
       die "dsearch.service is not enabled"
     fi
   fi
+
+  if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files dms.service >/dev/null 2>&1; then
+    if ! systemctl --user is-enabled --quiet dms.service; then
+      die "dms.service is not enabled"
+    fi
+  fi
 fi

@@ -78,6 +78,19 @@ else
   fi
 fi
 
+# Some DMS installers may start the user service immediately with default
+# settings. Keep it stopped until user defaults have been restored, so the
+# first real DMS start reads the repository-managed settings.
+if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files dms.service >/dev/null 2>&1; then
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    run_cmd systemctl --user stop dms.service
+  elif systemctl --user is-active --quiet dms.service; then
+    if ! run_cmd systemctl --user stop dms.service; then
+      warn "Failed to stop dms.service after install"
+    fi
+  fi
+fi
+
 # Keep common DMS optional features available even when the package dependency
 # set changes upstream.
 if ! run_cmd sudo pacman -S --needed --noconfirm \

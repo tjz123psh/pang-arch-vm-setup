@@ -161,3 +161,16 @@ if getent group input >/dev/null 2>&1 && ! id -nG "$USER" | tr " " "\n" | grep -
     warn "Failed to add $USER to input group"
   fi
 fi
+
+if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files dms.service >/dev/null 2>&1; then
+  if [[ "$DRY_RUN" -eq 1 ]] || systemctl --user is-active --quiet graphical-session.target; then
+    if run_cmd systemctl --user start dms.service; then
+      run_cmd sleep 2
+      restore_dms_managed_configs
+    else
+      warn "Failed to start dms.service after restoring user configs"
+    fi
+  else
+    log "dms.service will start on next graphical session"
+  fi
+fi

@@ -76,7 +76,7 @@ curl -fsSL https://install.danklinux.com | bash
 
 仓库脚本只改了一个关键点：不使用 `api.github.com/repos/.../releases/latest` 获取最新版，而是通过 GitHub `releases/latest` 跳转 URL 解析 tag，避免匿名 GitHub API 60 次/小时限流。这样适合反复在新 VM 上整机测试。
 
-DMS 模块排在 dotfiles、脚本、资产、Rime、fish、用户目录和 MIME 设置之后；即使 DMS 下载或安装失败，也不会跳过这些基础配置。官方 release installer 失败时，会回退到 Arch 官方 `dms-shell-niri` 包；当前主系统的 `/usr/bin/dms` 也是 Arch 包 `dms-shell` 提供的。
+DMS 安装器可能会生成默认 niri/kitty/font 配置。脚本会在 DMS 安装后保持 `dms.service` 停止，先恢复仓库里的 DMS settings、niri 和 kitty 配置，再启用/启动 DMS。这样第一次安装完成后就应该直接使用仓库配置，不需要第二次运行安装脚本来覆盖 DMS 默认配置。官方 release installer 失败时，会回退到 Arch 官方 `dms-shell-niri` 包；当前主系统的 `/usr/bin/dms` 也是 Arch 包 `dms-shell` 提供的。
 
 脚本仍会安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`、`kimageformats`。默认安装最后会校验 `dms` 命令是否存在；如果只想先部署基础环境，可以使用 `./install.sh --skip-dms -y`。
 
