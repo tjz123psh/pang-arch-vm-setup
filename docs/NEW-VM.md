@@ -76,7 +76,7 @@ cd pang-arch-vm-setup
 curl -fsSL https://install.danklinux.com | bash
 ```
 
-仓库脚本只改了一个关键点：不使用 `api.github.com/repos/.../releases/latest` 获取最新版，而是通过 GitHub `releases/latest` 跳转 URL 解析 tag，避免匿名 GitHub API 60 次/小时限流。这样适合反复在新 VM 上整机测试。
+仓库脚本改了两个关键点：不使用 `api.github.com/repos/.../releases/latest` 获取最新版，而是通过 GitHub `releases/latest` 跳转 URL 解析 tag，避免匿名 GitHub API 60 次/小时限流；调用官方 installer 时使用官方 headless 参数 `--compositor niri --term kitty --yes`，避免交互式 TUI 清屏或跳过终端选择。这样适合反复在新 VM 上整机测试。
 
 DMS 安装器可能会生成默认 niri/kitty/font 配置。脚本会先安装 DMS，并在安装后保持 `dms.service` 停止；随后才部署仓库里的 DMS settings、niri 和 kitty 配置，最后只启用 DMS 服务，不在安装过程中主动启动它。这样最后写入的一定是仓库配置，下一次登录图形会话时 DMS 会从这些配置启动，不需要第二次运行安装脚本来覆盖 DMS 默认配置。DMS 只使用官方 release installer 安装；如果官方安装器失败，脚本会直接失败，避免隐藏真实错误。
 

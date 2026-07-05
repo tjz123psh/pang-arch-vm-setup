@@ -49,11 +49,11 @@ run_dms_official_installer() {
   local status
 
   if [[ -t 1 ]]; then
-    log "DMS official installer uses a full-screen TUI; restoring terminal state before and after it runs"
+    log "Running DMS official installer in headless mode: compositor=niri term=kitty"
   fi
 
   restore_terminal_state
-  "$installer"
+  "$installer" --compositor niri --term kitty --yes
   status=$?
   restore_terminal_state
   return "$status"
@@ -64,7 +64,7 @@ install_dms_official_release() {
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     # shellcheck disable=SC2016
-    run_shell 'version="$(curl -fsSLI -o /dev/null -w '\''%{url_effective}'\'' https://github.com/AvengeMedia/DankMaterialShell/releases/latest)"; version="${version##*/}"; tmp="$(mktemp -d)"; curl -fL "https://github.com/AvengeMedia/DankMaterialShell/releases/download/$version/dankinstall-amd64.gz" -o "$tmp/installer.gz"; curl -fL "https://github.com/AvengeMedia/DankMaterialShell/releases/download/$version/dankinstall-amd64.gz.sha256" -o "$tmp/expected.sha256"; sha256sum -c "$tmp/expected.sha256"; gunzip "$tmp/installer.gz"; chmod +x "$tmp/installer"; "$tmp/installer"'
+    run_shell 'version="$(curl -fsSLI -o /dev/null -w '\''%{url_effective}'\'' https://github.com/AvengeMedia/DankMaterialShell/releases/latest)"; version="${version##*/}"; tmp="$(mktemp -d)"; curl -fL "https://github.com/AvengeMedia/DankMaterialShell/releases/download/$version/dankinstall-amd64.gz" -o "$tmp/installer.gz"; curl -fL "https://github.com/AvengeMedia/DankMaterialShell/releases/download/$version/dankinstall-amd64.gz.sha256" -o "$tmp/expected.sha256"; sha256sum -c "$tmp/expected.sha256"; gunzip "$tmp/installer.gz"; chmod +x "$tmp/installer"; "$tmp/installer" --compositor niri --term kitty --yes'
     return 0
   fi
 
