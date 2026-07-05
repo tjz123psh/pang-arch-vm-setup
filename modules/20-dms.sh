@@ -116,6 +116,12 @@ if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files dms.service >/dev
       warn "Failed to stop dms.service after install"
     fi
   fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    run_cmd systemctl --user reset-failed dms.service
+  elif systemctl --user is-failed --quiet dms.service; then
+    run_cmd systemctl --user reset-failed dms.service || warn "Failed to reset dms.service failed state"
+  fi
 fi
 
 # Keep common DMS optional features available even when the package dependency

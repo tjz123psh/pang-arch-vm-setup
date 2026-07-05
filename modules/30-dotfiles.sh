@@ -17,6 +17,12 @@ if command -v systemctl >/dev/null 2>&1 && systemctl --user is-active --quiet dm
   if ! run_cmd systemctl --user stop dms.service; then
     warn "Failed to stop dms.service before dotfile deployment"
   fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    run_cmd systemctl --user reset-failed dms.service
+  elif systemctl --user is-failed --quiet dms.service; then
+    run_cmd systemctl --user reset-failed dms.service || warn "Failed to reset dms.service failed state"
+  fi
 fi
 
 # Copy the contents into ~/.config instead of replacing ~/.config itself.
