@@ -179,6 +179,20 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     die "$USER is not in input group; log out and back in after usermod if this was just changed"
   fi
 
+  if command -v snapper >/dev/null 2>&1 && command -v findmnt >/dev/null 2>&1; then
+    if [[ "$(findmnt -T / -no FSTYPE 2>/dev/null || true)" == "btrfs" ]] \
+      && ! sudo snapper -c root get-config >/dev/null 2>&1; then
+      die "Snapper root config is missing"
+    fi
+
+    home_mount="$(findmnt -T "$HOME" -no TARGET 2>/dev/null || true)"
+    if [[ "$home_mount" == "/home" ]] \
+      && [[ "$(findmnt -T /home -no FSTYPE 2>/dev/null || true)" == "btrfs" ]] \
+      && ! sudo snapper -c home get-config >/dev/null 2>&1; then
+      die "Snapper home config is missing"
+    fi
+  fi
+
   if systemctl --user list-unit-files dsearch.service >/dev/null 2>&1; then
     if ! systemctl --user is-enabled --quiet dsearch.service; then
       die "dsearch.service is not enabled"

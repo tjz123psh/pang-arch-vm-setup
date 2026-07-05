@@ -64,6 +64,8 @@ cd pang-arch-vm-setup
 
 开发/编程环境默认包含 `base-devel`、`clang`、`python`、`python-pip`、`nodejs`、`npm`、`go`、`rust` 和 `jdk-openjdk`。这里使用 Arch 官方仓库的 `rust` 包，它同时提供 `cargo` 和 `rustfmt`。安装脚本会把官方包列表里的项目标记为显式安装，避免 Rust 这类工具链因为曾经只是 AUR 构建依赖而变成孤儿包。仓库不默认使用 `rustup`，避免额外引入用户目录里的 toolchain 状态。
 
+如果根分区是 Btrfs，安装脚本会自动创建 Snapper `root` 配置，设置 `wheel` 组可用并开启 ACL 同步。如果 `/home` 是独立 Btrfs 挂载点，也会创建 `home` 配置；如果 `/home` 只是根子卷内的普通目录，则由 `root` 配置覆盖。这样 `sysup` 在调用 `paru` 更新前可以先创建快照。
+
 ## 4. DMS 说明
 
 脚本默认安装方式与 DMS 官方安装器保持一致：下载 GitHub release 里的 `dankinstall` 二进制、校验 sha256 后执行。
@@ -122,6 +124,12 @@ find ~/scripts -type f -perm -111 -print | sort | xargs -r bash -n
 systemctl --user status dms.service dsearch.service --no-pager
 systemctl --user status app-org.fcitx.Fcitx5@autostart.service --no-pager
 systemctl --user status app-FlClash@autostart.service --no-pager
+```
+
+快照状态：
+
+```bash
+snapper list-configs
 ```
 
 ## 7. 从主系统同步配置到仓库

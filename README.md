@@ -14,6 +14,7 @@
 - 文件与媒体：Nautilus、Loupe、mpv、yazi
 - OCR/PDF：tesseract、中文/英文识别数据、poppler
 - 常用工具：git、paru、fzf、ripgrep、fd、eza、jq、glow
+- 快照：Btrfs + Snapper 更新前快照
 - 编程环境：base-devel、clang、Python/pip、Node.js/npm、Go、Rust/cargo、JDK
 - 日常应用：Chrome、QQ、微信 AppImage、Obsidian
 - 个人配置：nvim、fish、kitty、niri、DMS、opencode、脚本、壁纸、头像
@@ -82,3 +83,4 @@ cd ~/projects/pang-arch-vm-setup
 - 私密数据、浏览器登录状态、聊天记录、API key 不会放进仓库。
 - 这个项目主要面向虚拟机，不按物理机驱动方案设计。
 - Rime 的系统默认数据里可能带有明月拼音，但本仓库部署后只启用雾凇拼音 `rime_ice`。
+- 如果根分区是 Btrfs，脚本会自动创建 Snapper `root` 配置；当 `/home` 是独立 Btrfs 挂载时，也会创建 `home` 配置。

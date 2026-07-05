@@ -64,6 +64,7 @@ main() {
   run_module "00-preflight.sh"
   run_module "05-locale.sh"
   run_module "10-packages.sh"
+  run_module "15-snapper.sh"
   run_module "20-dms.sh"
   run_module "30-dotfiles.sh"
   run_module "40-scripts.sh"
