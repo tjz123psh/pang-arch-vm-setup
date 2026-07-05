@@ -68,17 +68,9 @@ cd pang-arch-vm-setup
 
 ## 4. DMS 说明
 
-脚本默认安装方式与 DMS 官方安装器保持一致：下载 GitHub release 里的 `dankinstall` 二进制、校验 sha256 后执行。
+脚本通过 Arch 官方仓库包安装 DMS：`dms-shell-niri` 会拉入 DMS 本体、quickshell、dgop、accountsservice 和 niri 相关依赖。这里不再运行官方 `dankinstall` TUI，避免交互界面卡住、跳过终端选择或无法输入密码时隐藏真实问题。
 
-和直接运行下面命令相比：
-
-```bash
-curl -fsSL https://install.danklinux.com | bash
-```
-
-仓库脚本只改了一个关键点：不使用 `api.github.com/repos/.../releases/latest` 获取最新版，而是通过 GitHub `releases/latest` 跳转 URL 解析 tag，避免匿名 GitHub API 60 次/小时限流。这样适合反复在新 VM 上整机测试。
-
-DMS 安装器可能会生成默认 niri/kitty/font 配置。脚本会先安装 DMS，并在安装后保持 `dms.service` 停止；随后才部署仓库里的 DMS settings、niri 和 kitty 配置，最后只启用 DMS 服务，不在安装过程中主动启动它。这样最后写入的一定是仓库配置，下一次登录图形会话时 DMS 会从这些配置启动，不需要第二次运行安装脚本来覆盖 DMS 默认配置。官方 release installer 失败时，会回退到 Arch 官方 `dms-shell-niri` 包；当前主系统的 `/usr/bin/dms` 也是 Arch 包 `dms-shell` 提供的。
+DMS 官方安装器会生成默认 niri/kitty/font 配置；本仓库改为直接部署自己的 DMS settings、niri 和 kitty 配置。脚本安装 DMS 包后保持 `dms.service` 停止，随后恢复仓库配置，最后只启用 DMS 服务，不在安装过程中主动启动它。这样下一次登录图形会话时 DMS 会从仓库配置启动。
 
 脚本仍会安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`、`kimageformats`。默认安装最后会校验 `dms` 命令是否存在；如果只想先部署基础环境，可以使用 `./install.sh --skip-dms -y`。
 
