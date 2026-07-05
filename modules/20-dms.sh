@@ -29,6 +29,36 @@ dms_latest_version() {
   printf '%s\n' "$version"
 }
 
+restore_terminal_state() {
+  if [[ -t 1 ]]; then
+    tput rmcup 2>/dev/null || printf '\033[?1049l'
+    tput cnorm 2>/dev/null || printf '\033[?25h'
+    tput sgr0 2>/dev/null || printf '\033[0m'
+    printf '\r'
+  fi
+
+  if [[ -t 0 ]]; then
+    stty sane 2>/dev/null || true
+  elif [[ -r /dev/tty ]]; then
+    stty sane </dev/tty 2>/dev/null || true
+  fi
+}
+
+run_dms_official_installer() {
+  local installer="$1"
+  local status
+
+  if [[ -t 1 ]]; then
+    log "DMS official installer uses a full-screen TUI; restoring terminal state before and after it runs"
+  fi
+
+  restore_terminal_state
+  "$installer"
+  status=$?
+  restore_terminal_state
+  return "$status"
+}
+
 install_dms_official_release() {
   local arch version tmp_dir expected actual status
 
@@ -58,7 +88,7 @@ install_dms_official_release() {
       status=1
     else
       chmod +x "$tmp_dir/installer"
-      "$tmp_dir/installer" || status=1
+      run_dms_official_installer "$tmp_dir/installer" || status=1
     fi
   fi
 
