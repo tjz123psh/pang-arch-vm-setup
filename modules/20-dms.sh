@@ -29,6 +29,15 @@ dms_latest_version() {
   printf '%s\n' "$version"
 }
 
+restore_terminal_state() {
+  if [[ -t 1 ]]; then
+    printf '\033[?1049l\033[0m'
+  fi
+  if [[ -t 0 ]]; then
+    stty sane 2>/dev/null || true
+  fi
+}
+
 install_dms_official_release() {
   local arch version tmp_dir expected actual status
 
@@ -59,6 +68,7 @@ install_dms_official_release() {
     else
       chmod +x "$tmp_dir/installer"
       "$tmp_dir/installer" || status=1
+      restore_terminal_state
     fi
   fi
 
@@ -69,11 +79,11 @@ install_dms_official_release() {
 if command -v dms >/dev/null 2>&1; then
   log "DMS already installed"
 else
-  log "Installing DMS from the official release installer without GitHub API"
-  if ! install_dms_official_release; then
-    warn "DMS official release installer failed; falling back to Arch package dms-shell-niri"
-    if ! run_cmd sudo pacman -S --needed --noconfirm dms-shell-niri; then
-      warn "DMS pacman install failed; continuing so user defaults stay deployed"
+  log "Installing DMS from Arch package dms-shell-niri"
+  if ! run_cmd sudo pacman -S --needed --noconfirm dms-shell-niri; then
+    warn "DMS pacman install failed; falling back to the official release installer"
+    if ! install_dms_official_release; then
+      warn "DMS official release installer failed; continuing so user defaults stay deployed"
     fi
   fi
 fi
