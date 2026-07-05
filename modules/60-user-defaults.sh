@@ -124,14 +124,32 @@ elif [[ ! -f "$rime_user_yaml" ]]; then
   run_shell 'printf "%s\n" "var:" "  previously_selected_schema: rime_ice" > "$HOME/.local/share/fcitx5/rime/user.yaml"'
 fi
 
-if command -v fcitx5-remote >/dev/null 2>&1 && fcitx5-remote --check >/dev/null 2>&1; then
-  if ! run_cmd fcitx5-remote -r; then
-    warn "Failed to reload fcitx5; log out and back in to load the restored Rime config"
+restart_fcitx5_with_rime() {
+  if ! command -v fcitx5-remote >/dev/null 2>&1 || ! command -v fcitx5 >/dev/null 2>&1; then
+    return 0
   fi
-  if ! run_cmd fcitx5-remote -s rime; then
-    warn "Failed to switch fcitx5 input method to rime"
+
+  if fcitx5-remote --check >/dev/null 2>&1; then
+    run_cmd fcitx5-remote -r || warn "Failed to reload fcitx5 config"
+    run_cmd fcitx5-remote -s rime || warn "Failed to switch fcitx5 input method to rime"
+    run_cmd fcitx5-remote -e || warn "Failed to stop fcitx5 for config reload"
+    if [[ "$DRY_RUN" -ne 1 ]]; then
+      sleep 1
+    fi
   fi
-fi
+
+  if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
+    run_shell 'setsid fcitx5 -d >/dev/null 2>&1 || fcitx5 -d >/dev/null 2>&1'
+    if [[ "$DRY_RUN" -ne 1 ]]; then
+      sleep 1
+    fi
+    run_cmd fcitx5-remote -s rime || warn "Failed to switch restarted fcitx5 input method to rime"
+  else
+    warn "No graphical display detected; log out and back in to load the restored Rime config"
+  fi
+}
+
+restart_fcitx5_with_rime
 
 rustup_fish="$HOME/.config/fish/conf.d/rustup.fish"
 rustup_source_line="source \"\$HOME/.cargo/env.fish\""
@@ -180,5 +198,13 @@ if getent group input >/dev/null 2>&1 && ! id -nG "$USER" | tr " " "\n" | grep -
 fi
 
 if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files dms.service >/dev/null 2>&1; then
-  log "dms.service is enabled but not started during install; log out and back in so it starts with restored configs"
+  if systemctl --user is-active --quiet graphical-session.target; then
+    if run_cmd systemctl --user start dms.service; then
+      log "dms.service started with restored configs"
+    else
+      die "Failed to start dms.service after restoring configs"
+    fi
+  else
+    log "graphical-session.target is not active; dms.service will start on next graphical login"
+  fi
 fi

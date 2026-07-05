@@ -203,8 +203,9 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     if ! systemctl --user is-enabled --quiet dms.service; then
       die "dms.service is not enabled"
     fi
-    if systemctl --user is-active --quiet dms.service; then
-      die "dms.service should not be active during install validation; it must start after restored configs are in place"
+    if systemctl --user is-active --quiet graphical-session.target \
+      && ! systemctl --user is-active --quiet dms.service; then
+      die "dms.service is not active in the current graphical session"
     fi
   fi
 fi
