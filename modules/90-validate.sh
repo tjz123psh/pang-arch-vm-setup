@@ -49,6 +49,11 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
     die "niri config must include repository dms/keybinds.kdl"
   fi
 
+  if [[ "$SKIP_DMS" -ne 1 ]] \
+    && ! grep -Fq 'spawn-at-startup "systemctl" "--user" "start" "dms.service"' "$HOME/.config/niri/config.kdl"; then
+    die "niri config must start dms.service at session startup"
+  fi
+
   if ! cmp -s "$ROOT_DIR/files/config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"; then
     die "kitty config does not match repository version"
   fi

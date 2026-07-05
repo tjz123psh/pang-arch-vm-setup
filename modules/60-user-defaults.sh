@@ -132,14 +132,10 @@ restart_fcitx5_with_rime() {
   if fcitx5-remote --check >/dev/null 2>&1; then
     run_cmd fcitx5-remote -r || warn "Failed to reload fcitx5 config"
     run_cmd fcitx5-remote -s rime || warn "Failed to switch fcitx5 input method to rime"
-    run_cmd fcitx5-remote -e || warn "Failed to stop fcitx5 for config reload"
-    if [[ "$DRY_RUN" -ne 1 ]]; then
-      sleep 1
-    fi
   fi
 
   if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
-    run_shell 'setsid fcitx5 -d >/dev/null 2>&1 || fcitx5 -d >/dev/null 2>&1'
+    run_cmd fcitx5 -d -r
     if [[ "$DRY_RUN" -ne 1 ]]; then
       sleep 1
     fi

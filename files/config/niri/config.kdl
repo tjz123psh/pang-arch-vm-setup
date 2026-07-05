@@ -78,6 +78,11 @@ environment {
 }
 
 
+// SDDM 通过 niri-session 启动 niri；显式拉起 DMS，避免只 enable
+// user service 时因为目标触发顺序不同而没有状态栏。
+spawn-at-startup "systemctl" "--user" "start" "dms.service"
+
+
 // 启动时不显示快捷键提示浮层
 hotkey-overlay {
     skip-at-startup
