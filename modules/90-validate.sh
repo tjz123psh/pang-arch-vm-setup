@@ -34,7 +34,7 @@ fi
 
 if [[ "$DRY_RUN" -ne 1 ]]; then
   if [[ "$SKIP_DMS" -ne 1 ]] && ! command -v dms >/dev/null 2>&1; then
-    die "DMS command missing; rerun after pacman can install dms-shell-niri or use --skip-dms for base setup only"
+    die "DMS command missing; rerun after the official DMS installer succeeds or use --skip-dms for base setup only"
   fi
 
   if ! cmp -s "$ROOT_DIR/files/config/niri/config.kdl" "$HOME/.config/niri/config.kdl"; then

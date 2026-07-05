@@ -101,10 +101,7 @@ if command -v dms >/dev/null 2>&1; then
 else
   log "Installing DMS from the official release installer without GitHub API"
   if ! install_dms_official_release; then
-    warn "DMS official release installer failed; falling back to Arch package dms-shell-niri"
-    if ! run_cmd sudo pacman -S --needed --noconfirm dms-shell-niri; then
-      warn "DMS pacman install failed; continuing so user defaults stay deployed"
-    fi
+    die "DMS official release installer failed"
   fi
 fi
 
