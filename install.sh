@@ -72,6 +72,7 @@ main() {
   run_module "50-services.sh"
   run_module "60-user-defaults.sh"
   run_module "90-validate.sh"
+  run_module "95-display-manager.sh"
 
   log "Done"
 }

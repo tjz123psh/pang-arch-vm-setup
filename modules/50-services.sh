@@ -43,7 +43,8 @@ if systemctl list-unit-files sddm.service >/dev/null 2>&1; then
       run_cmd sudo systemctl disable --now "$dm_unit"
     fi
   done
-  run_cmd sudo systemctl enable --now sddm.service
+  run_cmd sudo systemctl enable sddm.service
+  log "sddm.service enabled; it will start after user defaults are restored and validated"
 else
   warn "System unit not found: sddm.service"
 fi

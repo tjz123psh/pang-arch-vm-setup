@@ -72,6 +72,8 @@ cd pang-arch-vm-setup
 
 DMS 官方安装器会生成默认 niri/kitty/font 配置；本仓库改为直接部署自己的 DMS settings、niri 和 kitty 配置。脚本安装 DMS 包后保持 `dms.service` 停止，随后恢复仓库配置；如果当前已经在图形会话中，脚本会立即启动 DMS。niri 配置也会在会话启动时显式拉起 `dms.service`，避免 SDDM 登录后只启用服务但没有状态栏。
 
+新 VM 从 TTY 安装时，脚本只先启用 SDDM，等用户默认项、Rime、用户服务和校验都完成后才启动 SDDM，避免第一次登录时 DMS/fcitx 抢先读取未完成配置。
+
 脚本仍会安装 DMS 常用可选依赖：`matugen`、`cava`、`power-profiles-daemon`、`qt6-multimedia`、`qt6ct`、`wtype`、`cups-pk-helper`、`kimageformats`。默认安装最后会校验 `dms` 命令是否存在；如果只想先部署基础环境，可以使用 `./install.sh --skip-dms -y`。
 
 ## 5. 私密文件
