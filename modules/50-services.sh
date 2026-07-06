@@ -18,10 +18,8 @@ enable_user_unit() {
   local wants_dir="$HOME/.config/systemd/user/${wanted_by}.wants"
 
   if systemctl --user list-unit-files "$unit" >/dev/null 2>&1; then
-    if run_cmd systemctl --user enable "$unit"; then
-      return 0
-    fi
-    warn "systemctl --user enable failed for $unit; writing user wants symlink"
+    run_cmd systemctl --user enable "$unit" \
+      || warn "systemctl --user enable failed for $unit; writing user wants symlink"
   elif [[ ! -f "$unit_path" ]]; then
     warn "User unit not found: $unit"
     return 1
