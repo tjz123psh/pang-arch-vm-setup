@@ -11,6 +11,26 @@ user_units=(
   dsearch.service
 )
 
+enable_user_unit() {
+  local unit="$1"
+  local wanted_by="$2"
+  local unit_path="/usr/lib/systemd/user/$unit"
+  local wants_dir="$HOME/.config/systemd/user/${wanted_by}.wants"
+
+  if systemctl --user list-unit-files "$unit" >/dev/null 2>&1; then
+    if run_cmd systemctl --user enable "$unit"; then
+      return 0
+    fi
+    warn "systemctl --user enable failed for $unit; writing user wants symlink"
+  elif [[ ! -f "$unit_path" ]]; then
+    warn "User unit not found: $unit"
+    return 1
+  fi
+
+  run_cmd mkdir -p -- "$wants_dir"
+  run_cmd ln -sfn -- "$unit_path" "$wants_dir/$unit"
+}
+
 for unit in "${system_units[@]}"; do
   if systemctl list-unit-files "$unit" >/dev/null 2>&1; then
     run_cmd sudo systemctl enable --now "$unit"
@@ -53,25 +73,15 @@ else
 fi
 
 for unit in "${user_units[@]}"; do
-  if systemctl --user list-unit-files "$unit" >/dev/null 2>&1; then
-    if ! run_cmd systemctl --user enable "$unit"; then
-      warn "Failed to enable user unit: $unit"
-    fi
+  if enable_user_unit "$unit" default.target; then
     if ! run_cmd systemctl --user start "$unit"; then
       warn "Failed to start user unit: $unit"
     fi
-  else
-    warn "User unit not found: $unit"
   fi
 done
 
 if [[ "$SKIP_DMS" -ne 1 ]]; then
-  if systemctl --user list-unit-files dms.service >/dev/null 2>&1; then
-    if ! run_cmd systemctl --user enable dms.service; then
-      warn "Failed to enable user unit: dms.service"
-    fi
+  if enable_user_unit dms.service graphical-session.target; then
     log "dms.service enabled; it will start after repository-managed configs are restored"
-  else
-    warn "User unit not found: dms.service"
   fi
 fi

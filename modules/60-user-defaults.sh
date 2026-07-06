@@ -64,6 +64,23 @@ if command -v xdg-user-dirs-update >/dev/null 2>&1; then
   run_cmd xdg-user-dirs-update
 fi
 
+if command -v fish >/dev/null 2>&1; then
+  fish_path="$(command -v fish)"
+  current_shell="$(getent passwd "$USER" | cut -d: -f7)"
+
+  if [[ "$current_shell" != "$fish_path" ]]; then
+    run_cmd sudo usermod --shell "$fish_path" "$USER"
+  fi
+fi
+
+if getent group input >/dev/null 2>&1 && ! id -nG "$USER" | tr " " "\n" | grep -Fxq input; then
+  if run_cmd sudo usermod -aG input "$USER"; then
+    warn "Added $USER to input group; log out and log back in for this permission to take effect"
+  else
+    die "Failed to add $USER to input group"
+  fi
+fi
+
 rime_user_yaml="$HOME/.local/share/fcitx5/rime/user.yaml"
 rime_config_src="$ROOT_DIR/files/config/fcitx5/rime"
 rime_data_dst="$HOME/.local/share/fcitx5/rime"
@@ -134,14 +151,15 @@ restart_fcitx5_with_rime() {
     run_cmd fcitx5-remote -s rime || warn "Failed to switch fcitx5 input method to rime"
   fi
 
-  if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
-    run_cmd fcitx5 -d -r
+  if systemctl --user list-unit-files app-org.fcitx.Fcitx5@autostart.service >/dev/null 2>&1; then
+    run_cmd systemctl --user restart app-org.fcitx.Fcitx5@autostart.service \
+      || warn "Failed to restart fcitx5 user service; log out and back in to load Rime"
     if [[ "$DRY_RUN" -ne 1 ]]; then
       sleep 1
     fi
     run_cmd fcitx5-remote -s rime || warn "Failed to switch restarted fcitx5 input method to rime"
   else
-    warn "No graphical display detected; log out and back in to load the restored Rime config"
+    warn "fcitx5 autostart service is not available; log out and back in to load the restored Rime config"
   fi
 }
 
@@ -172,25 +190,6 @@ fi
 bad_nvim_color_package="$HOME/.local/share/nvim/lazy/base16-nvim"
 if [[ -d "$bad_nvim_color_package" ]]; then
   run_cmd rm -rf "$bad_nvim_color_package"
-fi
-
-if command -v fish >/dev/null 2>&1; then
-  fish_path="$(command -v fish)"
-  current_shell="$(getent passwd "$USER" | cut -d: -f7)"
-
-  if [[ "$current_shell" != "$fish_path" ]]; then
-    if ! run_cmd sudo usermod --shell "$fish_path" "$USER"; then
-      warn "Failed to change default shell to $fish_path"
-    fi
-  fi
-fi
-
-if getent group input >/dev/null 2>&1 && ! id -nG "$USER" | tr " " "\n" | grep -Fxq input; then
-  if run_cmd sudo usermod -aG input "$USER"; then
-    warn "Added $USER to input group; log out and log back in for this permission to take effect"
-  else
-    warn "Failed to add $USER to input group"
-  fi
 fi
 
 if [[ "$SKIP_DMS" -ne 1 ]] && systemctl --user list-unit-files dms.service >/dev/null 2>&1; then
